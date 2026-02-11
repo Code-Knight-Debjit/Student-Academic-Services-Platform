@@ -1,0 +1,135 @@
+{% extends "base/base.html" %}
+
+{% block title %}Results - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Header with Download Button -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Academic Results</h1>
+            <p class="text-gray-600 dark:text-gray-400">Semester {{ semester }} • Academic Year 2025-26</p>
+        </div>
+        
+        <a href="{% url 'download_pdf' student.usn semester %}" 
+           class="mt-4 md:mt-0 btn-primary text-white font-semibold py-3 px-6 rounded-lg shadow-lg inline-flex items-center space-x-2 hover:shadow-xl transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>Download PDF</span>
+        </a>
+    </div>
+    
+    <!-- Student Information Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 mb-8 card-hover">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            Student Information
+        </h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">USN</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.usn }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Name</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Department</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.department|default:"N/A" }}</p>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Date of Birth</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ metadata.dob }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Admission Route</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ metadata.admission_route|default:"N/A" }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Semester</p>
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ semester }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden card-hover">
+        <div class="p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Course Results
+            </h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                            <th class="px-6 py-4 text-left text-sm font-semibold">S.No</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Course Code</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Course Title</th>
+                            <th class="px-6 py-4 text-center text-sm font-semibold">Marks</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Marks in Words</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for result in results %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">{{ forloop.counter }}</td>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{{ result.course.course_code }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{{ result.course.course_title }}</td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-semibold
+                                    {% if result.final_cie_marks >= 40 %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                    {% elif result.final_cie_marks >= 35 %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400
+                                    {% else %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400{% endif %}">
+                                    {{ result.final_cie_marks|default:"N/A" }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{{ result.marks_in_words|default:"N/A" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-gray-50 dark:bg-gray-700/50 font-semibold">
+                            <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Total Marks:</td>
+                            <td class="px-6 py-4 text-center text-blue-600 dark:text-blue-400">{{ total_marks }}</td>
+                            <td></td>
+                        </tr>
+                        <tr class="bg-gray-50 dark:bg-gray-700/50 font-semibold">
+                            <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Average Marks:</td>
+                            <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400">{{ avg_marks }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Back Button -->
+    <div class="mt-8 text-center">
+        <a href="{% url 'home' %}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Search Another Result
+        </a>
+    </div>
+</div>
+{% endblock %}

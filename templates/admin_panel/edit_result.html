@@ -1,0 +1,89 @@
+{% extends "base/base.html" %}
+
+{% block title %}Edit Result{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+        <a href="{% url 'admin_panel' %}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4 transition">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Dashboard
+        </a>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Edit Result</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Update marks for {{ student.name }}</p>
+    </div>
+    
+    <!-- Student & Course Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Student</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.usn }} - {{ student.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Course</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ course.course_code }} - {{ course.course_title }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="{{ form.final_cie_marks.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Final CIE Marks
+                </label>
+                {{ form.final_cie_marks }}
+                {% if form.final_cie_marks.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.final_cie_marks.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="{{ form.marks_in_words.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Marks in Words
+                </label>
+                {{ form.marks_in_words }}
+                {% if form.marks_in_words.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.marks_in_words.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="{{ form.academic_year.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Academic Year
+                </label>
+                {{ form.academic_year }}
+                {% if form.academic_year.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.academic_year.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="{{ form.scheme.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Scheme
+                </label>
+                {{ form.scheme }}
+                {% if form.scheme.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.scheme.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="flex space-x-4">
+                <button type="submit" class="flex-1 btn-primary text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    Save Changes
+                </button>
+                <a href="{% url 'admin_panel' %}" class="flex-1 text-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

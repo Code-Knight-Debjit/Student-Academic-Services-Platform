@@ -1,0 +1,171 @@
+{% extends "base/base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Welcome Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            Welcome, {{ user.username }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">Manage student results and analytics</p>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium mb-1">Total Students</p>
+                    <p class="text-4xl font-bold">{{ total_students }}</p>
+                </div>
+                <div class="bg-blue-400/30 rounded-full p-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium mb-1">Total Results</p>
+                    <p class="text-4xl font-bold">{{ total_results }}</p>
+                </div>
+                <div class="bg-purple-400/30 rounded-full p-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 text-white shadow-xl card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-pink-100 text-sm font-medium mb-1">Total Courses</p>
+                    <p class="text-4xl font-bold">{{ total_courses }}</p>
+                </div>
+                <div class="bg-pink-400/30 rounded-full p-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <a href="{% url 'bulk_upload' %}" class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all card-hover">
+            <div class="flex items-center space-x-4">
+                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-3">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Bulk Upload</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Upload Excel/CSV files</p>
+                </div>
+            </div>
+        </a>
+        
+        <a href="{% url 'analytics' %}" class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all card-hover">
+            <div class="flex items-center space-x-4">
+                <div class="bg-gradient-to-br from-pink-500 to-orange-500 rounded-xl p-3">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Analytics</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">View detailed statistics</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <!-- Semester Statistics -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Semester Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {% for stat in semester_stats %}
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">Sem {{ stat.semester }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ stat.count }} results</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Avg: {{ stat.avg_marks|floatformat:2 }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Admission Route Statistics -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Admission Routes</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for stat in route_stats %}
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4">
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ stat.admission_route|default:"Not Specified" }}</p>
+                <p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">{{ stat.count }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">students</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Recent Uploads -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Recent Uploads</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Type</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">File Name</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Processed</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for upload in recent_uploads %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium
+                                {% if upload.upload_type == 'RESULTS' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400
+                                {% else %}bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400{% endif %}">
+                                {{ upload.get_upload_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">{{ upload.file_name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ upload.records_processed }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if upload.success %}
+                                <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    Success
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                    Failed
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ upload.upload_date|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No uploads yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

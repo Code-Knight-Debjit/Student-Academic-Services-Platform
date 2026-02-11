@@ -1,0 +1,140 @@
+{% extends "base/base.html" %}
+
+{% block title %}Home - Student Results System{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-2xl w-full">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
+                View Your <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Results</span>
+            </h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400">
+                Enter your details below to access your academic results
+            </p>
+        </div>
+        
+        <!-- Query Form Card -->
+        <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl shadow-2xl p-8 md:p-10 card-hover">
+            {% if error_message %}
+            <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-lg">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                    </svg>
+                    <p class="text-red-700 dark:text-red-300 font-medium">{{ error_message }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <form method="post" action="{% url 'home' %}" id="resultForm">
+                {% csrf_token %}
+                
+                <div class="space-y-6">
+                    <!-- USN Field -->
+                    <div>
+                        <label for="{{ form.usn.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            USN (University Seat Number)
+                        </label>
+                        {{ form.usn }}
+                        {% if form.usn.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.usn.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- DOB Field -->
+                    <div>
+                        <label for="{{ form.dob.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Date of Birth
+                        </label>
+                        {{ form.dob }}
+                        {% if form.dob.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.dob.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Semester Field -->
+                    <div>
+                        <label for="{{ form.semester.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Semester
+                        </label>
+                        {{ form.semester }}
+                        {% if form.semester.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.semester.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- reCAPTCHA -->
+                    {% comment %} <div class="flex justify-center">
+                        <div class="g-recaptcha" data-sitekey="{{ RECAPTCHA_SITE_KEY }}"></div>
+                    </div> {% endcomment %}
+                    
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center space-x-2">
+                        <span>View Results</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Info Cards -->
+        <div class="grid md:grid-cols-3 gap-4 mt-8">
+            <div class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 text-center">
+                <div class="text-blue-600 dark:text-blue-400 mb-2">
+                    <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Secure Access</p>
+            </div>
+            
+            <div class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 text-center">
+                <div class="text-purple-600 dark:text-purple-400 mb-2">
+                    <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Instant Results</p>
+            </div>
+            
+            <div class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 text-center">
+                <div class="text-pink-600 dark:text-pink-400 mb-2">
+                    <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">PDF Download</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if show_skeleton %}
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4">
+        <div class="text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+            <p class="text-gray-700 dark:text-gray-300 font-medium">Loading your results...</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Form submission with loading state
+    document.getElementById('resultForm').addEventListener('submit', function(e) {
+        const recaptchaResponse = grecaptcha.getResponse();
+        if (!recaptchaResponse) {
+            e.preventDefault();
+            alert('Please complete the reCAPTCHA verification');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

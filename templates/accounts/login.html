@@ -1,0 +1,62 @@
+{% extends "base/base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-md w-full">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Admin Login</h2>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Access the administrative dashboard</p>
+        </div>
+        
+        <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl shadow-2xl p-8 card-hover">
+            {% if form.non_field_errors %}
+            <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-lg">
+                <p class="text-red-700 dark:text-red-300 font-medium">{{ form.non_field_errors.0 }}</p>
+            </div>
+            {% endif %}
+            
+            <form method="post" action="{% url 'login' %}" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Username
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.username.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Password
+                    </label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="w-full btn-primary text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    Sign In
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <a href="{% url 'home' %}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

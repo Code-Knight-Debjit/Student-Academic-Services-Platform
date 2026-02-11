@@ -1,0 +1,137 @@
+{% extends "base/base.html" %}
+
+{% block title %}Bulk Upload{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+        <a href="{% url 'admin_panel' %}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4 transition">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Dashboard
+        </a>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Bulk Upload</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Upload Excel or CSV files to import data</p>
+    </div>
+    
+    <!-- Upload Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="{{ form.upload_type.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Upload Type
+                </label>
+                {{ form.upload_type }}
+                {% if form.upload_type.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.upload_type.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="{{ form.file.id_for_label }}" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Select File
+                </label>
+                {{ form.file }}
+                {% if form.file.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.file.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Supported formats: .xlsx, .xls, .csv (Max 10MB)
+                </p>
+            </div>
+            
+            <button type="submit" class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <span>Upload File</span>
+            </button>
+        </form>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg p-6 mb-8">
+        <h3 class="text-lg font-bold text-blue-900 dark:text-blue-300 mb-4">Upload Instructions</h3>
+        
+        <div class="space-y-4 text-sm text-blue-800 dark:text-blue-200">
+            <div>
+                <p class="font-semibold mb-2">For Results Data:</p>
+                <ul class="list-disc list-inside space-y-1 ml-4">
+                    <li>First 7 rows will be ignored (header at row 8)</li>
+                    <li>Required columns: USN, Name, Course Title</li>
+                    <li>Optional columns: Final CIE Marks, Marks in Words</li>
+                    <li>USN must be exactly 10 alphanumeric characters</li>
+                    <li>Duplicate subjects will be overwritten</li>
+                </ul>
+            </div>
+            
+            <div>
+                <p class="font-semibold mb-2">For Student Metadata:</p>
+                <ul class="list-disc list-inside space-y-1 ml-4">
+                    <li>Required columns: USN, DOB</li>
+                    <li>Optional column: Admission Route</li>
+                    <li>DOB format: YYYY-MM-DD or DD/MM/YYYY</li>
+                    <li>Admission routes: COMEDK, KCET, Management</li>
+                    <li>Existing metadata will be replaced</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sample Format -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Sample File Formats</h3>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <p class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Results File:</p>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
+                    <table class="text-xs">
+                        <thead>
+                            <tr class="border-b border-gray-300 dark:border-gray-600">
+                                <th class="px-2 py-1 text-left">USN</th>
+                                <th class="px-2 py-1 text-left">Name</th>
+                                <th class="px-2 py-1 text-left">Course</th>
+                                <th class="px-2 py-1 text-left">Final CIE</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 dark:text-gray-400">
+                            <tr>
+                                <td class="px-2 py-1">1XX21CS001</td>
+                                <td class="px-2 py-1">John Doe</td>
+                                <td class="px-2 py-1">Data Structures</td>
+                                <td class="px-2 py-1">45</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div>
+                <p class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Metadata File:</p>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
+                    <table class="text-xs">
+                        <thead>
+                            <tr class="border-b border-gray-300 dark:border-gray-600">
+                                <th class="px-2 py-1 text-left">USN</th>
+                                <th class="px-2 py-1 text-left">DOB</th>
+                                <th class="px-2 py-1 text-left">Route</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 dark:text-gray-400">
+                            <tr>
+                                <td class="px-2 py-1">1XX21CS001</td>
+                                <td class="px-2 py-1">2004-05-15</td>
+                                <td class="px-2 py-1">KCET</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
