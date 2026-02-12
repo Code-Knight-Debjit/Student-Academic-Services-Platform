@@ -12,11 +12,12 @@ from datetime import datetime
 import os
 
 from student_results import settings
+
 from .models import Student, StudentMetadata, Course, Result, UploadHistory
 from .forms import ResultQueryForm, BulkUploadForm, ResultEditForm
 from .utils import process_results_excel, process_metadata_excel
 from .pdf_generator import generate_result_pdf
-from django.conf import settings
+from django.conf import settings  # If not already imported
 from decimal import Decimal
 from .models import (
         RevaluationConfiguration,
@@ -24,32 +25,10 @@ from .models import (
         MakeupExamConfiguration,
         MakeupExamRequest
     )
-from dotenv import load_dotenv
-
-load_dotenv()
-
-def admin_panel(request):
-    is_proctor = request.user.groups.filter(name='Proctor').exists()
-    return render(request, 'base/base.html', {
-        'is_proctor': is_proctor
-    })
 
 def is_staff_or_professor(user):
     """Check if user is staff or superuser."""
     return user.is_staff or user.is_superuser
-
-def is_proctor(user):
-    """Check if user has proctor role."""
-    return user.groups.filter(name='Proctor').exists() or user.is_superuser
-
-
-def get_failed_subjects(student, semester):
-    """Get all failed subjects for a student in a semester."""
-    return Result.objects.filter(
-        student=student,
-        semester=semester,
-        final_cie_marks__lt=40  # Fail threshold
-    ).select_related('course')
 
 
 @ratelimit(key='ip', rate='10/m', method='POST')
@@ -69,7 +48,7 @@ def home(request):
         if form.is_valid():
             # Verify reCAPTCHA (skip if disabled)
             recaptcha_response = request.POST.get('g-recaptcha-response', '')
-            if os.getenv("RECAPTCHA_SECRET_KEY"):  # Only verify if configured
+            if settings.RECAPTCHA_SECRET_KEY:  # Only verify if configured
                 if not form.verify_recaptcha(recaptcha_response):
                     context['error_message'] = 'reCAPTCHA verification failed. Please try again.'
                     context['form'] = form
@@ -167,7 +146,7 @@ def home(request):
                 
                 # ===== Use enhanced template (or keep existing) =====
                 # Option 1: Use new template with tabs
-                return render(request, 'results/result_view_extended.html', context)
+                # return render(request, 'results/result_view_extended.html', context)
                 
                 # Option 2: Keep using existing template (will still work)
                 # return render(request, 'results/result_view.html', context)
@@ -226,7 +205,18 @@ def admin_panel(request):
     total_students = Student.objects.count()
     total_results = Result.objects.count()
     total_courses = Course.objects.count()
-    
+    try:
+        revaluation_count = RevaluationRequest.objects.count()
+        pending_revaluation = RevaluationRequest.objects.filter(status='PAID').count()
+        makeup_exam_count = MakeupExamRequest.objects.count()
+        pending_makeup = MakeupExamRequest.objects.filter(
+            status='PAID', admin_verified=False
+        ).count()
+    except:
+        revaluation_count = 0
+        pending_revaluation = 0
+        makeup_exam_count = 0
+        pending_makeup = 0
     # Recent uploads
     recent_uploads = UploadHistory.objects.all()[:10]
     
@@ -248,6 +238,10 @@ def admin_panel(request):
         'recent_uploads': recent_uploads,
         'semester_stats': semester_stats,
         'route_stats': route_stats,
+        'revaluation_count': revaluation_count,
+        'pending_revaluation': pending_revaluation,
+        'makeup_exam_count': makeup_exam_count,
+        'pending_makeup': pending_makeup,
     }
     
     return render(request, 'admin_panel/dashboard.html', context)
@@ -412,108 +406,11 @@ LOCATION: results/views_extended.py
 Add these to your existing results/views.py or import them.
 """
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.utils import timezone
-from django.db.models import Q, Count
-from django_ratelimit.decorators import ratelimit
-from django.db import transaction
-
-from .models import Student, Result, Course
-from .models import (
-    RevaluationConfiguration, RevaluationRequest,
-    MakeupExamConfiguration, MakeupExamRequest,
-    StudentNotification
-)
-from .services.payment_service import (
-    RevaluationPaymentService,
-    MakeupExamPaymentService
-)
-from .services.hall_ticket_service import generate_hall_ticket_pdf
-
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-# ============================================================================
-# STUDENT RESULT VIEW WITH REVALUATION BUTTON
-# ============================================================================
-
-@ratelimit(key='ip', rate='20/m', method='GET')
-def student_result_view_extended(request, usn, semester):
-    """
-    Extended result view with revaluation options.
-    This enhances the existing result_view.
-    """
-    try:
-        student = get_object_or_404(Student, usn=usn)
-        results = Result.objects.filter(
-            student=student,
-            semester=semester
-        ).select_related('course').order_by('course__course_code')
-        
-        if not results.exists():
-            messages.error(request, f'No results found for Semester {semester}')
-            return redirect('home')
-        
-        # Get revaluation configuration
-        reval_config = RevaluationConfiguration.objects.first()
-        
-        # Check which subjects can be revaluated
-        results_with_reval = []
-        for result in results:
-            # Check if revaluation already requested
-            existing_reval = RevaluationRequest.objects.filter(
-                student=student,
-                result=result
-            ).first()
-            
-            results_with_reval.append({
-                'result': result,
-                'can_request_reval': reval_config and reval_config.is_active() and not existing_reval,
-                'reval_status': existing_reval.status if existing_reval else None,
-                'reval_request': existing_reval
-            })
-        
-        # Get failed subjects count for makeup exam tabstudent_result_view_extended
-        failed_count = results.filter(final_cie_marks__lt=40).count()
-        
-        # Calculate statistics
-        total_marks = sum([r.final_cie_marks for r in results if r.final_cie_marks])
-        avg_marks = total_marks / results.count() if results.count() > 0 else 0
-        
-        context = {
-            'student': student,
-            'metadata': student.metadata,
-            'results_with_reval': results_with_reval,
-            'semester': semester,
-            'total_marks': total_marks,
-            'avg_marks': round(avg_marks, 2),
-            'reval_config': reval_config,
-            'show_makeup_tab': failed_count > 0,
-            'failed_count': failed_count,
-        }
-        
-        return render(request, 'results/result_view_extended.html', context)
-        
-    except Exception as e:
-        messages.error(request, f'Error loading results: {str(e)}')
-        return redirect('home')
-
-
-# ============================================================================
-# REVALUATION REQUEST VIEWS
-# ============================================================================
-
 @ratelimit(key='ip', rate='10/m', method='POST')
-@require_http_methods(["POST"])
 def create_revaluation_order(request):
     """Create Razorpay order for revaluation."""
+    from .services.payment_service import RevaluationPaymentService
+    
     try:
         result_id = request.POST.get('result_id')
         result = get_object_or_404(Result, id=result_id)
@@ -536,16 +433,13 @@ def create_revaluation_order(request):
         )
         
         if order_response['success']:
-            # Return Razorpay order details for frontend
             return JsonResponse({
                 'success': True,
                 'order_id': order_response['order_id'],
                 'amount': float(order_response['amount']),
                 'currency': 'INR',
-                'razorpay_key': os.getenv("RAZORPAY_KEY_ID"),
+                'razorpay_key': settings.RAZORPAY_KEY_ID,
                 'student_name': student.name,
-                'student_email': student.metadata.email if hasattr(student.metadata, 'email') else '',
-                'student_contact': student.metadata.phone if hasattr(student.metadata, 'phone') else ''
             })
         else:
             return JsonResponse(order_response, status=400)
@@ -558,9 +452,10 @@ def create_revaluation_order(request):
 
 
 @ratelimit(key='ip', rate='10/m', method='POST')
-@require_http_methods(["POST"])
 def verify_revaluation_payment(request):
     """Verify and complete revaluation payment."""
+    from .services.payment_service import RevaluationPaymentService
+    
     try:
         order_id = request.POST.get('razorpay_order_id')
         payment_id = request.POST.get('razorpay_payment_id')
@@ -580,7 +475,7 @@ def verify_revaluation_payment(request):
             return JsonResponse({
                 'success': True,
                 'message': 'Payment successful! Your revaluation request has been submitted.',
-                'receipt_url': result['receipt_url']
+                'receipt_url': result.get('receipt_url', '')
             })
         else:
             return JsonResponse(result, status=400)
@@ -592,9 +487,8 @@ def verify_revaluation_payment(request):
         }, status=500)
 
 
-# ============================================================================
-# MAKEUP EXAM VIEWS
-# ============================================================================
+# Makeup Exam Views
+# -----------------
 
 @ratelimit(key='ip', rate='20/m', method='GET')
 def makeup_exam_page(request, usn, semester):
@@ -607,17 +501,24 @@ def makeup_exam_page(request, usn, semester):
         
         if not failed_results.exists():
             messages.info(request, 'You have no failed subjects.')
-            return redirect('student_result_view_extended', usn=usn, semester=semester)
+            return redirect('home')
         
         # Get configuration
-        config = MakeupExamConfiguration.objects.first()
+        try:
+            config = MakeupExamConfiguration.objects.first()
+        except:
+            config = None
         
         # Check for existing request
-        existing_request = MakeupExamRequest.objects.filter(
-            student=student,
-            semester=semester,
-            status__in=['PENDING', 'PAID', 'ADMIN_VERIFIED', 'PROCTOR_VERIFIED', 'APPROVED']
-        ).first()
+        existing_request = None
+        try:
+            existing_request = MakeupExamRequest.objects.filter(
+                student=student,
+                semester=semester,
+                status__in=['PENDING', 'PAID', 'ADMIN_VERIFIED', 'PROCTOR_VERIFIED', 'APPROVED']
+            ).first()
+        except:
+            pass
         
         context = {
             'student': student,
@@ -636,17 +537,16 @@ def makeup_exam_page(request, usn, semester):
 
 
 @ratelimit(key='ip', rate='10/m', method='POST')
-@require_http_methods(["POST"])
 def create_makeup_exam_order(request):
     """Create Razorpay order for makeup exam registration."""
+    from .services.payment_service import MakeupExamPaymentService
+    
     try:
         usn = request.POST.get('usn')
         semester = int(request.POST.get('semester'))
         subject_ids = request.POST.getlist('subjects[]')
         
         student = get_object_or_404(Student, usn=usn)
-        
-        # Validate subjects
         subjects = Course.objects.filter(id__in=subject_ids)
         
         if not subjects.exists():
@@ -663,7 +563,7 @@ def create_makeup_exam_order(request):
                 'error': 'Makeup exam registration is currently closed'
             })
         
-        # Validate that selected subjects are actually failed
+        # Validate subjects are actually failed
         failed_subject_ids = get_failed_subjects(student, semester).values_list('course_id', flat=True)
         invalid_subjects = [s.id for s in subjects if s.id not in failed_subject_ids]
         
@@ -688,7 +588,7 @@ def create_makeup_exam_order(request):
                 'order_id': order_response['order_id'],
                 'amount': float(order_response['amount']),
                 'currency': 'INR',
-                'razorpay_key': os.getenv("RAZORPAY_KEY_ID"),
+                'razorpay_key': settings.RAZORPAY_KEY_ID,
                 'student_name': student.name,
                 'subject_count': order_response['subject_count']
             })
@@ -703,9 +603,10 @@ def create_makeup_exam_order(request):
 
 
 @ratelimit(key='ip', rate='10/m', method='POST')
-@require_http_methods(["POST"])
 def verify_makeup_exam_payment(request):
     """Verify and complete makeup exam payment."""
+    from .services.payment_service import MakeupExamPaymentService
+    
     try:
         order_id = request.POST.get('razorpay_order_id')
         payment_id = request.POST.get('razorpay_payment_id')
@@ -725,7 +626,7 @@ def verify_makeup_exam_payment(request):
             return JsonResponse({
                 'success': True,
                 'message': 'Payment successful! Your makeup exam registration has been submitted for verification.',
-                'receipt_url': result['receipt_url']
+                'receipt_url': result.get('receipt_url', '')
             })
         else:
             return JsonResponse(result, status=400)
@@ -737,221 +638,14 @@ def verify_makeup_exam_payment(request):
         }, status=500)
 
 
-# ============================================================================
-# ADMIN VERIFICATION VIEWS
-# ============================================================================
-
-@login_required
-@user_passes_test(is_staff_or_professor)
-def admin_revaluation_requests(request):
-    """Admin view for managing revaluation requests."""
-    # Filters
-    status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
-    
-    requests_qs = RevaluationRequest.objects.select_related(
-        'student', 'result__course'
-    ).order_by('-created_at')
-    
-    if status_filter:
-        requests_qs = requests_qs.filter(status=status_filter)
-    
-    if search:
-        requests_qs = requests_qs.filter(
-            Q(student__usn__icontains=search) |
-            Q(student__name__icontains=search) |
-            Q(result__course__course_code__icontains=search)
-        )
-    
-    # Statistics
-    stats = {
-        'total': RevaluationRequest.objects.count(),
-        'pending': RevaluationRequest.objects.filter(status='PAID').count(),
-        'processing': RevaluationRequest.objects.filter(status='PROCESSING').count(),
-        'completed': RevaluationRequest.objects.filter(status='COMPLETED').count(),
-    }
-    
-    context = {
-        'requests': requests_qs,
-        'stats': stats,
-        'status_filter': status_filter,
-        'search': search,
-    }
-    
-    return render(request, 'admin_panel/revaluation_requests.html', context)
-
-
-@login_required
-@user_passes_test(is_staff_or_professor)
-def admin_makeup_exam_requests(request):
-    """Admin view for managing makeup exam requests."""
-    # Filters
-    status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
-    
-    requests_qs = MakeupExamRequest.objects.prefetch_related('subjects').select_related(
-        'student'
-    ).order_by('-created_at')
-    
-    if status_filter:
-        requests_qs = requests_qs.filter(status=status_filter)
-    
-    if search:
-        requests_qs = requests_qs.filter(
-            Q(student__usn__icontains=search) |
-            Q(student__name__icontains=search)
-        )
-    
-    # Statistics
-    stats = {
-        'total': MakeupExamRequest.objects.count(),
-        'paid': MakeupExamRequest.objects.filter(status='PAID').count(),
-        'admin_verified': MakeupExamRequest.objects.filter(admin_verified=True).count(),
-        'proctor_verified': MakeupExamRequest.objects.filter(proctor_verified=True).count(),
-        'approved': MakeupExamRequest.objects.filter(status='APPROVED').count(),
-    }
-    
-    context = {
-        'requests': requests_qs,
-        'stats': stats,
-        'status_filter': status_filter,
-        'search': search,
-    }
-    
-    return render(request, 'admin_panel/makeup_exam_requests.html', context)
-
-
-@login_required
-@user_passes_test(is_staff_or_professor)
-@require_http_methods(["POST"])
-def admin_verify_makeup_request(request, request_id):
-    """Admin verification of makeup exam request."""
-    try:
-        makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
-        
-        action = request.POST.get('action')  # 'approve' or 'reject'
-        remarks = request.POST.get('remarks', '')
-        
-        if action == 'approve':
-            makeup_request.admin_verified = True
-            makeup_request.admin_verified_by = request.user
-            makeup_request.admin_verified_at = timezone.now()
-            makeup_request.admin_remarks = remarks
-            
-            # Update status if proctor also verified
-            if makeup_request.proctor_verified:
-                makeup_request.status = 'APPROVED'
-            else:
-                makeup_request.status = 'ADMIN_VERIFIED'
-            
-            makeup_request.save()
-            
-            messages.success(request, 'Request approved successfully')
-            
-            # Create notification
-            from results.signals import create_notification
-            create_notification(
-                student=makeup_request.student,
-                notification_type='ADMIN_VERIFIED',
-                title='Makeup Exam Request Verified by Admin',
-                message='Your makeup exam registration has been verified by the admin.',
-                makeup_exam_request=makeup_request
-            )
-            
-        elif action == 'reject':
-            makeup_request.status = 'REJECTED'
-            makeup_request.admin_remarks = remarks
-            makeup_request.save()
-            
-            messages.success(request, 'Request rejected')
-            
-            # Notification for rejection
-            from results.signals import create_notification
-            create_notification(
-                student=makeup_request.student,
-                notification_type='REQUEST_REJECTED',
-                title='Makeup Exam Request Rejected',
-                message=f'Your makeup exam registration has been rejected. Reason: {remarks}',
-                makeup_exam_request=makeup_request
-            )
-        
-        return redirect('admin_makeup_exam_requests')
-    
-    except Exception as e:
-        messages.error(request, f'Error: {str(e)}')
-        return redirect('admin_makeup_exam_requests')
-
-
-# ============================================================================
-# PROCTOR VERIFICATION VIEWS
-# ============================================================================
-
-@login_required
-@user_passes_test(is_proctor)
-def proctor_makeup_exam_requests(request):
-    """Proctor view for verifying makeup exam requests."""
-    # Only show admin-verified requests
-    requests_qs = MakeupExamRequest.objects.filter(
-        admin_verified=True,
-        proctor_verified=False
-    ).prefetch_related('subjects').select_related('student').order_by('-created_at')
-    
-    context = {
-        'requests': requests_qs,
-    }
-    
-    return render(request, 'proctor/makeup_exam_verification.html', context)
-
-
-@login_required
-@user_passes_test(is_proctor)
-@require_http_methods(["POST"])
-def proctor_verify_makeup_request(request, request_id):
-    """Proctor verification of makeup exam request."""
-    try:
-        makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
-        
-        if not makeup_request.admin_verified:
-            messages.error(request, 'Admin verification required first')
-            return redirect('proctor_makeup_exam_requests')
-        
-        action = request.POST.get('action')
-        remarks = request.POST.get('remarks', '')
-        
-        if action == 'approve':
-            makeup_request.proctor_verified = True
-            makeup_request.proctor_verified_by = request.user
-            makeup_request.proctor_verified_at = timezone.now()
-            makeup_request.proctor_remarks = remarks
-            makeup_request.status = 'APPROVED'
-            makeup_request.save()
-            
-            messages.success(request, 'Request approved - Hall ticket generation enabled')
-            
-            # Create notification
-            from results.signals import create_notification
-            create_notification(
-                student=makeup_request.student,
-                notification_type='HALL_TICKET_READY',
-                title='Hall Ticket Ready for Download',
-                message='Your makeup exam hall ticket is now ready for download.',
-                makeup_exam_request=makeup_request
-            )
-        
-        return redirect('proctor_makeup_exam_requests')
-    
-    except Exception as e:
-        messages.error(request, f'Error: {str(e)}')
-        return redirect('proctor_makeup_exam_requests')
-
-
-# ============================================================================
-# HALL TICKET GENERATION
-# ============================================================================
+# Hall Ticket Generation
+# ----------------------
 
 @ratelimit(key='ip', rate='10/m', method='GET')
 def download_hall_ticket(request, request_id):
     """Generate and download makeup exam hall ticket."""
+    from .services.hall_ticket_service import generate_hall_ticket_pdf
+    
     try:
         makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
         

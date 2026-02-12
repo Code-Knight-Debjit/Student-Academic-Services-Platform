@@ -1,0 +1,251 @@
+{% extends "base/base.html" %}
+
+{% block title %}Makeup Exam Requests - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{% url 'admin_panel' %}" 
+           class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4 transition">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Dashboard
+        </a>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Makeup Exam Requests</h1>
+        <p class="text-gray-600 dark:text-gray-400">Verify and approve makeup exam registrations</p>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-6">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Requests</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ stats.total }}</p>
+        </div>
+        
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl shadow-md border border-blue-200 dark:border-blue-800 p-6">
+            <p class="text-sm text-blue-600 dark:text-blue-400 mb-1">Paid (Pending Verification)</p>
+            <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ stats.paid }}</p>
+        </div>
+        
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl shadow-md border border-yellow-200 dark:border-yellow-800 p-6">
+            <p class="text-sm text-yellow-600 dark:text-yellow-400 mb-1">Admin Verified</p>
+            <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.admin_verified }}</p>
+        </div>
+        
+        <div class="bg-green-50 dark:bg-green-900/20 rounded-xl shadow-md border border-green-200 dark:border-green-800 p-6">
+            <p class="text-sm text-green-600 dark:text-green-400 mb-1">Approved</p>
+            <p class="text-3xl font-bold text-green-600 dark:text-green-400">{{ stats.approved }}</p>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-6 mb-8">
+        <form method="get" class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status Filter</label>
+                <select name="status" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Status</option>
+                    <option value="PAID" {% if status_filter == 'PAID' %}selected{% endif %}>Paid - Pending Verification</option>
+                    <option value="ADMIN_VERIFIED" {% if status_filter == 'ADMIN_VERIFIED' %}selected{% endif %}>Admin Verified</option>
+                    <option value="PROCTOR_VERIFIED" {% if status_filter == 'PROCTOR_VERIFIED' %}selected{% endif %}>Proctor Verified</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+            
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search</label>
+                <input type="text" 
+                       name="search" 
+                       value="{{ search }}"
+                       placeholder="USN, Name..."
+                       class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="flex items-end">
+                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Requests Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-100 dark:bg-gray-700">
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">ID</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Student</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Subjects</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Verification</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for request in requests %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                            #{{ request.id }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ request.student.usn }}</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">{{ request.student.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                {{ request.get_subject_count }} subjects
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="text-sm font-semibold text-gray-900 dark:text-white">₹{{ request.amount_paid }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col items-center space-y-1">
+                                {% if request.admin_verified %}
+                                <span class="text-xs px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    ✓ Admin
+                                </span>
+                                {% else %}
+                                <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                    ⏳ Admin
+                                </span>
+                                {% endif %}
+                                
+                                {% if request.proctor_verified %}
+                                <span class="text-xs px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    ✓ Proctor
+                                </span>
+                                {% else %}
+                                <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                    ⏳ Proctor
+                                </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium
+                                {% if request.status == 'PAID' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400
+                                {% elif request.status == 'ADMIN_VERIFIED' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400
+                                {% elif request.status == 'APPROVED' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                {% elif request.status == 'REJECTED' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                {{ request.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                            {{ request.created_at|date:"M d, Y" }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if not request.admin_verified %}
+                            <button onclick="verifyRequest({{ request.id }})" 
+                                    class="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium text-sm">
+                                Verify
+                            </button>
+                            {% else %}
+                            <button onclick="viewDetails({{ request.id }})" 
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm">
+                                View
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No makeup exam requests found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<!-- Verification Modal -->
+<div id="verificationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-6">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Verify Request</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="verificationForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" id="requestId" name="request_id">
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Action</label>
+                    <select name="action" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option value="">Select Action</option>
+                        <option value="approve">Approve Request</option>
+                        <option value="reject">Reject Request</option>
+                    </select>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remarks (Optional)</label>
+                    <textarea name="remarks" 
+                              rows="4" 
+                              class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              placeholder="Enter your remarks here..."></textarea>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">
+                        Submit Verification
+                    </button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-3 rounded-lg transition">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function verifyRequest(requestId) {
+    document.getElementById('requestId').value = requestId;
+    document.getElementById('verificationForm').action = '{% url "admin_verify_makeup_request" 0 %}'.replace('0', requestId);
+    document.getElementById('verificationModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('verificationModal').classList.add('hidden');
+}
+
+function viewDetails(requestId) {
+    window.location.href = '/admin/results/makeupexamrequest/' + requestId + '/change/';
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeModal();
+    }
+});
+
+// Close modal on backdrop click
+document.getElementById('verificationModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeModal();
+    }
+});
+</script>
+
+{% endblock %}

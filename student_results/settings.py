@@ -5,7 +5,9 @@ Django settings for Student Results System.
 from pathlib import Path
 from decouple import config
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,8 +17,12 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-development-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'debjit-paul.me', 'www.debjit-paul.me']
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://debjit-paul.me",
+    "https://www.debjit-paul.me"
+]
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -56,6 +62,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'results.context_processors.notification_counts',
+                'results.context_processors.exam_configurations',
+                'results.context_processors.user_permissions',
             ],
         },
     },
@@ -102,6 +111,10 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Razorpay Configuration
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='')
+RAZORPAY_WEBHOOK_SECRET = config('RAZORPAY_WEBHOOK_SECRET', default='')
 
 # Media files
 MEDIA_URL = '/media/'

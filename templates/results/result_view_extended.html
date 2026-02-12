@@ -1,0 +1,362 @@
+{% extends "base/base.html" %}
+
+{% block title %}Results - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    
+    <!-- Tab Navigation -->
+    <div class="mb-8">
+        <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="switchTab('results')" 
+                        id="results-tab"
+                        class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Results
+                </button>
+                
+                {% if show_makeup_tab %}
+                <button onclick="switchTab('makeup')" 
+                        id="makeup-tab"
+                        class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Makeup Examinations
+                    <span class="ml-2 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium px-2.5 py-0.5 rounded">
+                        {{ failed_count }}
+                    </span>
+                </button>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    
+    <!-- Results Tab Content -->
+    <div id="results-content" class="tab-content">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Academic Results</h1>
+                <p class="text-gray-600 dark:text-gray-400">Semester {{ semester }} • Academic Year 2023-24</p>
+            </div>
+            
+            <a href="{% url 'download_pdf' student.usn semester %}" 
+               class="mt-4 md:mt-0 btn-primary text-white font-semibold py-3 px-6 rounded-lg shadow-lg inline-flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>Download PDF</span>
+            </a>
+        </div>
+        
+        <!-- Student Information Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 md:p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                Student Information
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">USN</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.usn }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Name</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.name }}</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Department</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.department|default:"N/A" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Semester</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ semester }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Revaluation Window Notice -->
+        {% if reval_config and reval_config.is_active %}
+        <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg p-6 mb-8">
+            <div class="flex items-center">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <div>
+                    <p class="font-semibold text-blue-900 dark:text-blue-300">Revaluation Window Open</p>
+                    <p class="text-sm text-blue-800 dark:text-blue-400">
+                        You can request revaluation for any subject. Fee: ₹{{ reval_config.fee_per_subject }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Results Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Course Results
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 text-white">
+                                <th class="px-6 py-4 text-left text-sm font-semibold">S.No</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold">Course Code</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold">Course Title</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Marks</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold">Grade</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for item in results_with_reval %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">{{ forloop.counter }}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{{ item.result.course.course_code }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{{ item.result.course.course_title }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-semibold
+                                        {% if item.result.final_cie_marks >= 40 %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                        {% elif item.result.final_cie_marks >= 35 %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400
+                                        {% else %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400{% endif %}">
+                                        {{ item.result.final_cie_marks|default:"N/A" }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                    {{ item.result.marks_in_words|default:"N/A" }}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    {% if item.can_request_reval %}
+                                        <button onclick="requestRevaluation({{ item.result.id }})" 
+                                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-4 rounded-lg transition">
+                                            Request Reval
+                                        </button>
+                                    {% elif item.reval_status %}
+                                        <span class="text-xs px-3 py-1 rounded-full
+                                            {% if item.reval_status == 'PAID' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400
+                                            {% elif item.reval_status == 'COMPLETED' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                            {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                            {{ item.reval_status }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-xs text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-gray-50 dark:bg-gray-700/50 font-semibold">
+                                <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Total Marks:</td>
+                                <td class="px-6 py-4 text-center text-blue-600 dark:text-blue-400">{{ total_marks }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr class="bg-gray-50 dark:bg-gray-700/50 font-semibold">
+                                <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Average Marks:</td>
+                                <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400">{{ avg_marks }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Makeup Exam Tab Content -->
+    {% if show_makeup_tab %}
+    <div id="makeup-content" class="tab-content hidden">
+        <div class="max-w-6xl mx-auto px-4 py-8">
+            
+            <!-- Info Alert -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg p-6 mb-8">
+                <div class="flex items-start">
+                    <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 mr-3 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <p class="font-semibold text-blue-900 dark:text-blue-300">Makeup Examination Registration</p>
+                        <p class="text-sm text-blue-800 dark:text-blue-400">
+                            You have {{ failed_count }} failed subject{{ failed_count|pluralize }}. Register for makeup examination below.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Failed Subjects List -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Failed Subjects</h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-100 dark:bg-gray-700">
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Course Code</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Course Title</th>
+                                <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Marks</th>
+                                <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for item in results_with_reval %}
+                            {% if item.result.final_cie_marks < 40 %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ item.result.course.course_code }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                    {{ item.result.course.course_title }}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                        {{ item.result.final_cie_marks }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                        Failed
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Registration Button -->
+                <div class="mt-8 text-center">
+                    <a href="{% url 'makeup_exam_page' student.usn semester %}" 
+                    class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Register for Makeup Examination
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+
+<!-- Razorpay Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+// Tab switching
+function switchTab(tab) {
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+        btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+    });
+    
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    const tabButton = document.getElementById(tab + '-tab');
+    tabButton.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+    tabButton.classList.remove('border-transparent', 'text-gray-500');
+    
+    document.getElementById(tab + '-content').classList.remove('hidden');
+}
+
+// Revaluation request
+function requestRevaluation(resultId) {
+    // Create order
+    fetch('{% url "create_revaluation_order" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: 'result_id=' + resultId
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Open Razorpay checkout
+            const options = {
+                key: data.razorpay_key,
+                amount: data.amount * 100,
+                currency: data.currency,
+                name: 'Student Results System',
+                description: 'Revaluation Fee',
+                order_id: data.order_id,
+                handler: function(response) {
+                    // Verify payment
+                    verifyRevaluationPayment(response);
+                },
+                prefill: {
+                    name: data.student_name,
+                    email: data.student_email,
+                    contact: data.student_contact
+                },
+                theme: {
+                    color: '#3b82f6'
+                }
+            };
+            
+            const rzp = new Razorpay(options);
+            rzp.open();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error creating order: ' + error);
+    });
+}
+
+function verifyRevaluationPayment(response) {
+    fetch('{% url "verify_revaluation_payment" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'razorpay_order_id': response.razorpay_order_id,
+            'razorpay_payment_id': response.razorpay_payment_id,
+            'razorpay_signature': response.razorpay_signature
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment successful! Your revaluation request has been submitted.');
+            location.reload();
+        } else {
+            alert('Payment verification failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error verifying payment: ' + error);
+    });
+}
+</script>
+
+<style>
+.tab-button.active {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+</style>
+
+{% endblock %}

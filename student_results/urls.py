@@ -6,12 +6,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from results.signals import razorpay_webhook
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
     path('results/', include('results.urls')),
     path('accounts/', include('accounts.urls')),
+    path('webhooks/razorpay/', razorpay_webhook, name='razorpay_webhook'),
 ]
 
 # Serve media files in development
