@@ -120,6 +120,10 @@ RAZORPAY_WEBHOOK_SECRET = config('RAZORPAY_WEBHOOK_SECRET', default='')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+import os
+os.makedirs(MEDIA_ROOT / 'receipts' / 'revaluation', exist_ok=True)
+os.makedirs(MEDIA_ROOT / 'receipts' / 'makeup_exam', exist_ok=True)
+os.makedirs(MEDIA_ROOT / 'hall_tickets', exist_ok=True)
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

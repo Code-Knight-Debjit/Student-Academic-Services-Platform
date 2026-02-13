@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Avg, Count
 from django_ratelimit.decorators import ratelimit
+from django.core.paginator import Paginator
 from datetime import datetime
 import os
 
@@ -22,7 +23,9 @@ from .models import (
         RevaluationConfiguration,
         RevaluationRequest,
         MakeupExamConfiguration,
-        MakeupExamRequest
+        MakeupExamRequest,
+        StudentNotification,
+        AuditLog
     )
 from dotenv import load_dotenv
 
@@ -30,8 +33,11 @@ load_dotenv()
 
 def admin_panel(request):
     is_proctor = request.user.groups.filter(name='Proctor').exists()
-    return render(request, 'base/base.html', {
-        'is_proctor': is_proctor
+    is_admin = request.user.is_superuser
+    return render(request, 'admin_panel/dashboard.html', {
+        'is_proctor': is_proctor,
+        'is_admin': is_admin,
+        'data': 'Data for admin panel goes here'
     })
 
 def is_staff_or_professor(user):
@@ -219,38 +225,84 @@ def download_pdf(request, usn, semester):
         return redirect('home')
 
 
+
 @login_required
 @user_passes_test(is_staff_or_professor)
-def admin_panel(request):
-    """Admin dashboard with analytics."""
+def admin_dashboard(request):
+    """
+    Enhanced admin dashboard with all statistics and quick actions.
+    """
+    # Existing statistics
     total_students = Student.objects.count()
     total_results = Result.objects.count()
     total_courses = Course.objects.count()
     
+    # NEW: Extended statistics
+    try:
+        revaluation_count = RevaluationRequest.objects.count()
+        pending_revaluation = RevaluationRequest.objects.filter(
+            status__in=['PAID', 'PROCESSING']
+        ).count()
+        completed_revaluation = RevaluationRequest.objects.filter(status='COMPLETED').count()
+        
+        makeup_exam_count = MakeupExamRequest.objects.count()
+        pending_admin_verification = MakeupExamRequest.objects.filter(
+            status='PAID', 
+            admin_verified=False
+        ).count()
+        pending_proctor_verification = MakeupExamRequest.objects.filter(
+            admin_verified=True,
+            proctor_verified=False
+        ).count()
+        approved_makeup = MakeupExamRequest.objects.filter(status='APPROVED').count()
+        
+        unread_notifications = StudentNotification.objects.filter(is_read=False).count()
+        recent_actions = AuditLog.objects.all()[:10]
+        
+    except:
+        revaluation_count = 0
+        pending_revaluation = 0
+        completed_revaluation = 0
+        makeup_exam_count = 0
+        pending_admin_verification = 0
+        pending_proctor_verification = 0
+        approved_makeup = 0
+        unread_notifications = 0
+        recent_actions = []
+    
     # Recent uploads
-    recent_uploads = UploadHistory.objects.all()[:10]
+    recent_uploads = UploadHistory.objects.all()[:5]
     
-    # Semester-wise statistics
-    semester_stats = Result.objects.values('semester').annotate(
-        count=Count('id'),
-        avg_marks=Avg('final_cie_marks')
-    ).order_by('semester')
-    
-    # Admission route statistics
-    route_stats = StudentMetadata.objects.values('admission_route').annotate(
-        count=Count('student')
-    ).order_by('-count')
+    # Quick stats
+    failed_students = Result.objects.filter(final_cie_marks__lt=40).values('student').distinct().count()
     
     context = {
+        # Existing
         'total_students': total_students,
         'total_results': total_results,
         'total_courses': total_courses,
         'recent_uploads': recent_uploads,
-        'semester_stats': semester_stats,
-        'route_stats': route_stats,
+        
+        # NEW: Revaluation stats
+        'revaluation_count': revaluation_count,
+        'pending_revaluation': pending_revaluation,
+        'completed_revaluation': completed_revaluation,
+        
+        # NEW: Makeup exam stats
+        'makeup_exam_count': makeup_exam_count,
+        'pending_admin_verification': pending_admin_verification,
+        'pending_proctor_verification': pending_proctor_verification,
+        'approved_makeup': approved_makeup,
+        
+        # NEW: Other stats
+        'failed_students': failed_students,
+        'unread_notifications': unread_notifications,
+        'recent_actions': recent_actions,
+        'is_admin': request.user.is_superuser,
     }
     
     return render(request, 'admin_panel/dashboard.html', context)
+
 
 
 @login_required
@@ -609,7 +661,7 @@ def makeup_exam_page(request, usn, semester):
             messages.info(request, 'You have no failed subjects.')
             return redirect('student_result_view_extended', usn=usn, semester=semester)
         
-        # Get configuration
+        # Get configurationMakeupExamRequest
         config = MakeupExamConfiguration.objects.first()
         
         # Check for existing request
@@ -776,6 +828,7 @@ def admin_revaluation_requests(request):
         'stats': stats,
         'status_filter': status_filter,
         'search': search,
+        'is_admin': request.user.is_superuser,
     }
     
     return render(request, 'admin_panel/revaluation_requests.html', context)
@@ -972,3 +1025,677 @@ def download_hall_ticket(request, request_id):
     except Exception as e:
         messages.error(request, f'Error generating hall ticket: {str(e)}')
         return redirect('home')
+    
+@ratelimit(key='ip', rate='10/m', method='GET')
+def download_receipt(request, receipt_type, request_id):
+    """
+    Download receipt PDF for revaluation or makeup exam.
+    
+    Args:
+        receipt_type: 'revaluation' or 'makeup'
+        request_id: ID of the request
+    """
+    try:
+        if receipt_type == 'revaluation':
+            reval_request = get_object_or_404(RevaluationRequest, id=request_id)
+            
+            if not reval_request.receipt_url:
+                messages.error(request, 'Receipt not available')
+                return redirect('home')
+            
+            # Redirect to receipt URL
+            return redirect(reval_request.receipt_url)
+            
+        elif receipt_type == 'makeup':
+            makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
+            
+            if not makeup_request.receipt_url:
+                messages.error(request, 'Receipt not available')
+                return redirect('home')
+            
+            # Redirect to receipt URL
+            return redirect(makeup_request.receipt_url)
+        
+        else:
+            messages.error(request, 'Invalid receipt type')
+            return redirect('home')
+            
+    except Exception as e:
+        messages.error(request, f'Error downloading receipt: {str(e)}')
+        return redirect('home')
+
+# ============================================================================
+# PART 2: New Views for Edit Marks and Student Receipts
+# Add these to results/views.py
+# ============================================================================
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.http import HttpResponse
+from django.utils import timezone
+from .models import Student, Result, RevaluationRequest, MakeupExamRequest
+
+
+# ============================================================================
+# EDIT REVALUATION MARKS VIEW
+# ============================================================================
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def admin_edit_revaluation(request, result_id):
+    """
+    Edit marks for a revaluation request.
+    Updates both Result and RevaluationRequest models.
+    """
+    result = get_object_or_404(Result, id=result_id)
+    
+    # Get revaluation request
+    try:
+        reval_request = RevaluationRequest.objects.get(result=result)
+    except RevaluationRequest.DoesNotExist:
+        messages.error(request, 'No revaluation request found for this result.')
+        return redirect('admin:results_revaluationrequest_changelist')
+    
+    if request.method == 'POST':
+        try:
+            # Get new marks from form
+            new_marks = float(request.POST.get('revalued_marks'))
+            admin_remarks = request.POST.get('admin_remarks', '')
+            
+            # Validate marks
+            if new_marks < 0 or new_marks > 100:
+                messages.error(request, 'Marks must be between 0 and 100.')
+                return redirect('admin_edit_revaluation', result_id=result_id)
+            
+            # Store original marks if not already stored
+            if not reval_request.original_marks:
+                reval_request.original_marks = result.final_cie_marks
+            
+            # Check if marks changed
+            marks_changed = (new_marks != reval_request.original_marks)
+            
+            # Update Result model (this updates the actual result)
+            old_marks = result.final_cie_marks
+            result.final_cie_marks = new_marks
+            result.save()
+            
+            # Update RevaluationRequest model
+            reval_request.revalued_marks = new_marks
+            reval_request.marks_changed = marks_changed
+            reval_request.status = 'COMPLETED'
+            reval_request.admin_remarks = admin_remarks
+            reval_request.processed_by = request.user
+            reval_request.processed_at = timezone.now()
+            reval_request.save()
+            
+            # Create notification for student
+            from .signals import create_notification
+            
+            if marks_changed:
+                message = (
+                    f'Revaluation for {result.course.course_title} is completed. '
+                    f'Your marks have been updated from {reval_request.original_marks} to {new_marks}.'
+                )
+            else:
+                message = (
+                    f'Revaluation for {result.course.course_title} is completed. '
+                    f'Your marks remain {new_marks}.'
+                )
+            
+            create_notification(
+                student=result.student,
+                notification_type='REVALUATION_COMPLETED',
+                title='Revaluation Results Available',
+                message=message,
+                revaluation_request=reval_request
+            )
+            
+            # Log the action
+            from .signals import log_audit
+            log_audit(
+                action_type='REVALUATION_PROCESSED',
+                student=result.student,
+                user=request.user,
+                description=f'Revaluation processed: {result.course.course_code} - Marks changed from {old_marks} to {new_marks}',
+                metadata={
+                    'result_id': result.id,
+                    'course_code': result.course.course_code,
+                    'original_marks': float(reval_request.original_marks),
+                    'new_marks': float(new_marks),
+                    'marks_changed': marks_changed
+                }
+            )
+            
+            messages.success(
+                request, 
+                f'Marks updated successfully! Changed from {old_marks} to {new_marks}. '
+                f'Student has been notified.'
+            )
+            return redirect('admin:results_revaluationrequest_changelist')
+            
+        except ValueError:
+            messages.error(request, 'Invalid marks value. Please enter a number.')
+        except Exception as e:
+            messages.error(request, f'Error updating marks: {str(e)}')
+    
+    context = {
+        'result': result,
+        'reval_request': reval_request,
+        'student': result.student,
+        'course': result.course,
+    }
+    
+    return render(request, 'admin_panel/edit_revaluation.html', context)
+
+
+# ============================================================================
+# EDIT RESULT MARKS VIEW (For regular result editing)
+# ============================================================================
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def admin_edit_result(request, result_id):
+    """
+    Edit regular result marks (not revaluation).
+    """
+    result = get_object_or_404(Result, id=result_id)
+    
+    if request.method == 'POST':
+        try:
+            new_marks = float(request.POST.get('marks'))
+            
+            if new_marks < 0 or new_marks > 100:
+                messages.error(request, 'Marks must be between 0 and 100.')
+                return redirect('admin_edit_result', result_id=result_id)
+            
+            old_marks = result.final_cie_marks
+            result.final_cie_marks = new_marks
+            result.save()
+            
+            # Log the action
+            from .signals import log_audit
+            log_audit(
+                action_type='RESULT_EDITED',
+                student=result.student,
+                user=request.user,
+                description=f'Result edited: {result.course.course_code} - Marks changed from {old_marks} to {new_marks}',
+                metadata={
+                    'result_id': result.id,
+                    'course_code': result.course.course_code,
+                    'old_marks': float(old_marks),
+                    'new_marks': float(new_marks)
+                }
+            )
+            
+            messages.success(request, f'Marks updated from {old_marks} to {new_marks}')
+            return redirect('admin:results_result_changelist')
+            
+        except ValueError:
+            messages.error(request, 'Invalid marks value.')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+    
+    context = {
+        'result': result,
+        'student': result.student,
+        'course': result.course,
+    }
+    
+    return render(request, 'admin_panel/edit_result.html', context)
+
+
+# ============================================================================
+# STUDENT RECEIPTS VIEW
+# ============================================================================
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def student_receipts(request, student_id):
+    """
+    View all receipts for a specific student.
+    Shows both revaluation and makeup exam receipts.
+    """
+    student = get_object_or_404(Student, id=student_id)
+    
+    # Get all revaluation receipts
+    revaluation_receipts = RevaluationRequest.objects.filter(
+        student=student,
+        receipt_url__isnull=False
+    ).select_related('result__course').order_by('-created_at')
+    
+    # Get all makeup exam receipts
+    makeup_receipts = MakeupExamRequest.objects.filter(
+        student=student,
+        receipt_url__isnull=False
+    ).prefetch_related('subjects').order_by('-created_at')
+    
+    context = {
+        'student': student,
+        'revaluation_receipts': revaluation_receipts,
+        'makeup_receipts': makeup_receipts,
+        'total_receipts': revaluation_receipts.count() + makeup_receipts.count(),
+    }
+    
+    return render(request, 'admin_panel/student_receipts.html', context)
+
+
+# ============================================================================
+# BULK DOWNLOAD RECEIPTS
+# ============================================================================
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def download_student_receipts(request, student_id):
+    """
+    Download all receipts for a student as a ZIP file.
+    """
+    import zipfile
+    from io import BytesIO
+    import os
+    from django.conf import settings
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    # Create ZIP file in memory
+    zip_buffer = BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        
+        # Add revaluation receipts
+        revaluation_receipts = RevaluationRequest.objects.filter(
+            student=student,
+            receipt_url__isnull=False
+        )
+        
+        for receipt in revaluation_receipts:
+            try:
+                # Get file path from URL
+                file_path = receipt.receipt_url.replace(settings.MEDIA_URL, '')
+                full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+                
+                if os.path.exists(full_path):
+                    # Add to ZIP with organized folder structure
+                    zip_path = f"revaluation/{os.path.basename(file_path)}"
+                    zip_file.write(full_path, zip_path)
+            except Exception as e:
+                print(f"Error adding revaluation receipt: {e}")
+        
+        # Add makeup exam receipts
+        makeup_receipts = MakeupExamRequest.objects.filter(
+            student=student,
+            receipt_url__isnull=False
+        )
+        
+        for receipt in makeup_receipts:
+            try:
+                file_path = receipt.receipt_url.replace(settings.MEDIA_URL, '')
+                full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+                
+                if os.path.exists(full_path):
+                    zip_path = f"makeup_exam/{os.path.basename(file_path)}"
+                    zip_file.write(full_path, zip_path)
+            except Exception as e:
+                print(f"Error adding makeup receipt: {e}")
+        
+        # Add hall tickets
+        hall_tickets = MakeupExamRequest.objects.filter(
+            student=student,
+            hall_ticket_url__isnull=False
+        )
+        
+        for ticket in hall_tickets:
+            try:
+                file_path = ticket.hall_ticket_url.replace(settings.MEDIA_URL, '')
+                full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+                
+                if os.path.exists(full_path):
+                    zip_path = f"hall_tickets/{os.path.basename(file_path)}"
+                    zip_file.write(full_path, zip_path)
+            except Exception as e:
+                print(f"Error adding hall ticket: {e}")
+    
+    # Prepare response
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="receipts_{student.usn}.zip"'
+    
+    return response
+
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def student_search(request):
+    """
+    Advanced student search with filters and pagination.
+    """
+    query = request.GET.get('q', '')
+    department = request.GET.get('department', '')
+    has_failed = request.GET.get('has_failed', '')
+    
+    students = Student.objects.all()
+    
+    # Search filter
+    if query:
+        students = students.filter(
+            Q(usn__icontains=query) |
+            Q(name__icontains=query) |
+            Q(department__icontains=query)
+        )
+    
+    # Department filter
+    if department:
+        students = students.filter(department=department)
+    
+    # Batch filter
+    
+    # Failed students filter
+    if has_failed == 'yes':
+        failed_student_ids = Result.objects.filter(
+            final_cie_marks__lt=40
+        ).values_list('student_id', flat=True).distinct()
+        students = students.filter(id__in=failed_student_ids)
+    
+    # Get filter options
+    departments = Student.objects.values_list('department', flat=True).distinct().exclude(department__isnull=True)
+    
+    # Pagination
+    paginator = Paginator(students.order_by('usn'), 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'students': page_obj,
+        'query': query,
+        'department': department,
+        'has_failed': has_failed,
+        'departments': departments,
+        'total_count': students.count(),
+    }
+    
+    return render(request, 'admin_panel/student_search.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def revaluation_management(request):
+    """
+    Manage all revaluation requests with search and filters.
+    """
+    query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    requests_list = RevaluationRequest.objects.select_related(
+        'student', 'result__course'
+    ).all()
+    
+    # Search
+    if query:
+        requests_list = requests_list.filter(
+            Q(student__usn__icontains=query) |
+            Q(student__name__icontains=query) |
+            Q(result__course__course_code__icontains=query) |
+            Q(result__course__course_title__icontains=query)
+        )
+    
+    # Status filter
+    if status_filter:
+        requests_list = requests_list.filter(status=status_filter)
+    
+    # Date filters
+    if date_from:
+        requests_list = requests_list.filter(created_at__gte=date_from)
+    if date_to:
+        requests_list = requests_list.filter(created_at__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': RevaluationRequest.objects.count(),
+        'pending': RevaluationRequest.objects.filter(status='PENDING').count(),
+        'paid': RevaluationRequest.objects.filter(status='PAID').count(),
+        'processing': RevaluationRequest.objects.filter(status='PROCESSING').count(),
+        'completed': RevaluationRequest.objects.filter(status='COMPLETED').count(),
+        'rejected': RevaluationRequest.objects.filter(status='REJECTED').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(requests_list.order_by('-created_at'), 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'requests': page_obj,
+        'stats': stats,
+        'query': query,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_count': requests_list.count(),
+    }
+    
+    return render(request, 'admin_panel/revaluation_management.html', context)
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def makeup_exam_management(request):
+    """
+    Manage all makeup exam requests with search and filters.
+    """
+    query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    verification_filter = request.GET.get('verification', '')
+    
+    requests_list = MakeupExamRequest.objects.select_related('student').prefetch_related('subjects').all()
+    
+    # Search
+    if query:
+        requests_list = requests_list.filter(
+            Q(student__usn__icontains=query) |
+            Q(student__name__icontains=query) |
+            Q(exam_cycle__icontains=query)
+        )
+    
+    # Status filter
+    if status_filter:
+        requests_list = requests_list.filter(status=status_filter)
+    
+    # Verification filter
+    if verification_filter == 'pending_admin':
+        requests_list = requests_list.filter(admin_verified=False)
+    elif verification_filter == 'pending_proctor':
+        requests_list = requests_list.filter(admin_verified=True, proctor_verified=False)
+    elif verification_filter == 'approved':
+        requests_list = requests_list.filter(admin_verified=True, proctor_verified=True)
+    
+    # Statistics
+    stats = {
+        'total': MakeupExamRequest.objects.count(),
+        'paid': MakeupExamRequest.objects.filter(status='PAID').count(),
+        'pending_admin': MakeupExamRequest.objects.filter(admin_verified=False).count(),
+        'pending_proctor': MakeupExamRequest.objects.filter(
+            admin_verified=True, proctor_verified=False
+        ).count(),
+        'approved': MakeupExamRequest.objects.filter(status='APPROVED').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(requests_list.order_by('-created_at'), 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'requests': page_obj,
+        'stats': stats,
+        'query': query,
+        'status_filter': status_filter,
+        'verification_filter': verification_filter,
+        'total_count': requests_list.count(),
+    }
+    
+    return render(request, 'admin_panel/makeup_exam_management.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def admin_verify_makeup_ajax(request, request_id):
+    """
+    Admin verification via AJAX (no page reload).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'})
+    
+    try:
+        makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            makeup_request.admin_verified = True
+            makeup_request.admin_verified_by = request.user
+            makeup_request.admin_verified_at = timezone.now()
+            makeup_request.admin_remarks = remarks
+            makeup_request.status = 'ADMIN_VERIFIED'
+            makeup_request.save()
+            
+            # Create notification
+            from .signals import create_notification
+            create_notification(
+                student=makeup_request.student,
+                notification_type='MAKEUP_ADMIN_VERIFIED',
+                title='Makeup Exam: Admin Verified',
+                message=f'Your makeup exam registration has been verified by admin. Awaiting proctor verification.',
+                makeup_exam_request=makeup_request
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Request approved successfully!'
+            })
+        
+        elif action == 'reject':
+            makeup_request.status = 'REJECTED'
+            makeup_request.admin_remarks = remarks
+            makeup_request.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Request rejected.'
+            })
+        
+        else:
+            return JsonResponse({'success': False, 'error': 'Invalid action'})
+    
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@user_passes_test(lambda u: u.groups.filter(name='Proctor').exists() or u.is_superuser)
+def proctor_verify_makeup_ajax(request, request_id):
+    """
+    Proctor verification via AJAX.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'})
+    
+    try:
+        makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
+        
+        if not makeup_request.admin_verified:
+            return JsonResponse({
+                'success': False,
+                'error': 'Admin verification required first'
+            })
+        
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            makeup_request.proctor_verified = True
+            makeup_request.proctor_verified_by = request.user
+            makeup_request.proctor_verified_at = timezone.now()
+            makeup_request.proctor_remarks = remarks
+            makeup_request.status = 'APPROVED'
+            makeup_request.save()
+            
+            # Generate hall ticket
+            from .services.receipt_service import generate_hall_ticket_file
+            hall_ticket_url = generate_hall_ticket_file(makeup_request)
+            makeup_request.hall_ticket_url = hall_ticket_url
+            makeup_request.save()
+            
+            # Create notification
+            from .signals import create_notification
+            create_notification(
+                student=makeup_request.student,
+                notification_type='HALL_TICKET_READY',
+                title='Hall Ticket Ready',
+                message=f'Your makeup exam hall ticket is ready for download.',
+                makeup_exam_request=makeup_request
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Request approved! Hall ticket generated.'
+            })
+        
+        elif action == 'reject':
+            makeup_request.status = 'REJECTED'
+            makeup_request.proctor_remarks = remarks
+            makeup_request.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Request rejected.'
+            })
+    
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def student_profile(request, student_id):
+    """
+    Complete student profile with all information and actions.
+    """
+    student = get_object_or_404(Student, id=student_id)
+    
+    try:
+        metadata = student.metadata
+    except StudentMetadata.DoesNotExist:
+        metadata = None
+    
+    # Get all results
+    results = Result.objects.filter(student=student).select_related('course').order_by('semester', 'course__course_code')
+    
+    # Get revaluation requests
+    revaluation_requests = RevaluationRequest.objects.filter(student=student).select_related('result__course')
+    
+    # Get makeup exam requests
+    makeup_requests = MakeupExamRequest.objects.filter(student=student).prefetch_related('subjects')
+    
+    # Get notifications
+    notifications = StudentNotification.objects.filter(student=student).order_by('-created_at')[:10]
+    
+    # Statistics
+    total_results = results.count()
+    failed_count = results.filter(final_cie_marks__lt=40).count()
+    avg_marks = results.aggregate(Avg('final_cie_marks'))['final_cie_marks__avg'] or 0
+    
+    context = {
+        'student': student,
+        'metadata': metadata,
+        'results': results,
+        'revaluation_requests': revaluation_requests,
+        'makeup_requests': makeup_requests,
+        'notifications': notifications,
+        'total_results': total_results,
+        'failed_count': failed_count,
+        'avg_marks': round(avg_marks, 2),
+    }
+    
+    return render(request, 'admin_panel/student_profile.html', context)

@@ -15,7 +15,7 @@
                     Results
                 </button>
                 
-                {% if show_makeup_tab %}
+                {% comment %} {% if show_makeup_tab %}
                 <button onclick="switchTab('makeup')" 
                         id="makeup-tab"
                         class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
@@ -24,7 +24,7 @@
                         {{ failed_count }}
                     </span>
                 </button>
-                {% endif %}
+                {% endif %} {% endcomment %}
             </nav>
         </div>
     </div>
@@ -118,7 +118,8 @@
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Course Title</th>
                                 <th class="px-6 py-4 text-center text-sm font-semibold">Marks</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Grade</th>
-                                <th class="px-6 py-4 text-center text-sm font-semibold">Action</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Reval</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Paper Seeing</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -155,6 +156,23 @@
                                         <span class="text-xs text-gray-500">-</span>
                                     {% endif %}
                                 </td>
+                                <td class="px-6 py-4 text-center">
+                                    {% if item.can_request_reval %}
+                                        <button onclick="requestRevaluation({{ item.result.id }})" 
+                                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-4 rounded-lg transition">
+                                            Paper Seeing
+                                        </button>
+                                    {% elif item.reval_status %}
+                                        <span class="text-xs px-3 py-1 rounded-full
+                                            {% if item.reval_status == 'PAID' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400
+                                            {% elif item.reval_status == 'COMPLETED' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                            {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                            {{ item.reval_status }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-xs text-gray-500">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -163,10 +181,12 @@
                                 <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Total Marks:</td>
                                 <td class="px-6 py-4 text-center text-blue-600 dark:text-blue-400">{{ total_marks }}</td>
                                 <td colspan="2"></td>
+                                <td colspan="2"></td>
                             </tr>
                             <tr class="bg-gray-50 dark:bg-gray-700/50 font-semibold">
                                 <td colspan="3" class="px-6 py-4 text-right text-gray-900 dark:text-white">Average Marks:</td>
                                 <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400">{{ avg_marks }}</td>
+                                <td colspan="2"></td>
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>
@@ -177,7 +197,7 @@
     </div>
     
     <!-- Makeup Exam Tab Content -->
-    {% if show_makeup_tab %}
+    {% comment %} {% if show_makeup_tab %}
     <div id="makeup-content" class="tab-content hidden">
         <div class="max-w-6xl mx-auto px-4 py-8">
             
@@ -251,7 +271,7 @@
             
         </div>
     </div>
-    {% endif %}
+    {% endif %} {% endcomment %}
     
 </div>
 

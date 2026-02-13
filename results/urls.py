@@ -8,6 +8,10 @@ from . import views
 urlpatterns = [
     path('download/<str:usn>/<int:semester>/', views.download_pdf, name='download_pdf'),
     
+    path('receipt/<str:receipt_type>/<int:request_id>/', 
+          views.download_receipt, 
+          name='download_receipt'),
+    
     path('revaluation/create-order/', 
          views.create_revaluation_order, 
          name='create_revaluation_order'),
@@ -15,8 +19,6 @@ urlpatterns = [
     path('revaluation/verify-payment/', 
          views.verify_revaluation_payment, 
          name='verify_revaluation_payment'),
-    
-    
     # ========================================================================
     # NEW URLS - Makeup Exam
     # ========================================================================
@@ -68,4 +70,32 @@ urlpatterns = [
     path('proctor/makeup-exam/verify/<int:request_id>/', 
          views.proctor_verify_makeup_request, 
          name='proctor_verify_makeup_request'),
+    # Admin Features - Edit Marks
+    path('admin-panel/edit-revaluation/<int:result_id>/', 
+         views.admin_edit_revaluation, 
+         name='admin_edit_revaluation'),
+    
+    path('admin-panel/edit-result/<int:result_id>/', 
+         views.admin_edit_result, 
+         name='admin_edit_result'),
+    
+    # Admin Features - Student Receipts
+    path('admin/student-receipts/<int:student_id>/', 
+         views.student_receipts, 
+         name='student_receipts'),
+    
+    path('admin/download-receipts/<int:student_id>/', 
+         views.download_student_receipts, 
+         name='download_student_receipts'),
+     # Student Management
+     path('admin-panel/students/', views.student_search, name='student_search'),
+     path('admin-panel/student/<int:student_id>/', views.student_profile, name='student_profile'),
+
+     # Revaluation Management
+     path('admin-panel/revaluations/', views.revaluation_management, name='revaluation_management'),
+
+     # Makeup Exam Management
+     path('admin-panel/makeup-exams/', views.makeup_exam_management, name='makeup_exam_management'),
+     path('admin-panel/makeup-verify/<int:request_id>/', views.admin_verify_makeup_ajax, name='admin_verify_makeup_ajax'),
+     path('admin-panel/proctor-verify/<int:request_id>/', views.proctor_verify_makeup_ajax, name='proctor_verify_makeup_ajax'),
 ]

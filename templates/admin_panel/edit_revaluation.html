@@ -1,0 +1,136 @@
+
+{% extends "base/base.html" %}
+
+{% block title %}Edit Revaluation Marks - {{ student.usn }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{% url 'admin:results_revaluationrequest_changelist' %}" 
+           class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 mb-4">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Revaluation Requests
+        </a>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Edit Revaluation Marks</h1>
+        <p class="text-gray-600 dark:text-gray-400">Update marks after revaluation process</p>
+    </div>
+    
+    <!-- Student & Course Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 md:p-8 mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Student & Course Information</h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">USN</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.usn }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Name</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ student.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Course Code</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ course.course_code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Course Title</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ course.course_title }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Status -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border-l-4 border-blue-500 p-6 mb-8">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 mr-3 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            <div>
+                <p class="font-semibold text-blue-900 dark:text-blue-300 mb-2">Current Status</p>
+                <div class="text-sm text-blue-800 dark:text-blue-400 space-y-1">
+                    <p><strong>Original Marks:</strong> {{ reval_request.original_marks }}</p>
+                    <p><strong>Current Marks (in DB):</strong> {{ result.final_cie_marks }}</p>
+                    <p><strong>Status:</strong> {{ reval_request.status }}</p>
+                    <p><strong>Payment Amount:</strong> ₹{{ reval_request.amount_paid }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 md:p-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Update Marks</h2>
+        
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Revalued Marks -->
+            <div>
+                <label for="revalued_marks" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Revalued Marks *
+                </label>
+                <input type="number" 
+                       step="0.01"
+                       min="0" 
+                       max="100"
+                       id="revalued_marks" 
+                       name="revalued_marks" 
+                       value="{{ result.final_cie_marks }}"
+                       required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-blue-500">
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Enter marks between 0 and 100. This will update both the Result and RevaluationRequest tables.
+                </p>
+            </div>
+            
+            <!-- Admin Remarks -->
+            <div>
+                <label for="admin_remarks" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Admin Remarks
+                </label>
+                <textarea id="admin_remarks" 
+                          name="admin_remarks" 
+                          rows="4"
+                          class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                          placeholder="Add any remarks about the revaluation process...">{{ reval_request.admin_remarks }}</textarea>
+            </div>
+            
+            <!-- Warning -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div class="text-sm text-yellow-800 dark:text-yellow-300">
+                        <p class="font-semibold mb-1">Important Notice:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Marks will be updated in the main Result table</li>
+                            <li>Status will be changed to "COMPLETED"</li>
+                            <li>Student will receive a notification</li>
+                            <li>Action will be logged in audit trail</li>
+                            <li>Marks changed flag will be automatically set</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Buttons -->
+            <div class="flex space-x-4 pt-4">
+                <button type="submit" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition">
+                    💾 Save Changes
+                </button>
+                <a href="{% url 'admin:results_revaluationrequest_changelist' %}" 
+                   class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-lg text-center transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+</div>
+{% endblock %}
