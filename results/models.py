@@ -118,6 +118,39 @@ class Result(models.Model):
     def __str__(self):
         return f"{self.student.usn} - {self.course.course_code} - {self.final_cie_marks}"
 
+class Paper_Seeing(models.Model):
+    """Student Paper Seeing records."""
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='paper_seeings'
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='paper_seeings'
+    )
+    final_cie_marks = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+    marks_in_words = models.CharField(max_length=100, blank=True, null=True)
+    academic_year = models.CharField(max_length=20, blank=True, null=True)
+    scheme = models.CharField(max_length=50, blank=True, null=True)
+    semester = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'paper_seeings'
+        unique_together = ['student', 'course']
+        ordering = ['student', 'semester', 'course']
+
+    def __str__(self):
+        return f"{self.student.usn} - {self.course.course_code} - {self.final_cie_marks}"
+
 
 class UploadHistory(models.Model):
     """Track Excel/CSV upload history."""
@@ -261,6 +294,123 @@ class RevaluationRequest(models.Model):
     
     class Meta:
         db_table = 'revaluation_requests'
+        unique_together = ['student', 'result']
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['razorpay_order_id']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.usn} - {self.result.course.course_code} - {self.status}"
+    
+    def save(self, *args, **kwargs):
+        # Store original marks on creation
+        if not self.pk and not self.original_marks:
+            self.original_marks = self.result.final_cie_marks
+        super().save(*args, **kwargs)
+
+
+
+class PaperSeeingConfiguration(models.Model):
+    """Global Paper Seeing settings managed by admin.""" 
+    
+    is_window_open = models.BooleanField(default=False)
+    window_start_date = models.DateTimeField(null=True, blank=True)
+    window_end_date = models.DateTimeField(null=True, blank=True)
+    fee_per_subject = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=1000.00,
+        validators=[MinValueValidator(0)]
+    )
+    max_subjects_per_request = models.IntegerField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'paper_seeing_configuration'
+        verbose_name = 'Paper Seeing Configuration'
+        verbose_name_plural = 'Paper Seeing Configuration'
+    
+    def __str__(self):
+        status = "Open" if self.is_window_open else "Closed"
+        return f"Paper Seeing Window - {status}"
+    
+    def is_active(self):
+        """Check if paper seeing window is currently active."""
+        if not self.is_window_open:
+            return False
+        
+        now = timezone.now()
+        if self.window_start_date and now < self.window_start_date:
+            return False
+        if self.window_end_date and now > self.window_end_date:
+            return False
+        
+        return True
+
+
+class PaperSeeingRequest(models.Model):
+    """Student Paper Seeing request with payment tracking."""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Payment'),
+        ('PAID', 'Payment Completed'),
+        ('PROCESSING', 'Under Review'),
+        ('COMPLETED', 'Revaluation Completed'),
+        ('REJECTED', 'Rejected'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='paper_seeing_requests'
+    )
+    result = models.ForeignKey(
+        Result,
+        on_delete=models.CASCADE,
+        related_name='paper_seeing_requests'
+    )
+    
+    # Payment details
+    razorpay_order_id = models.CharField(max_length=100, unique=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Status and tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    receipt_url = models.CharField(max_length=500, blank=True, null=True)
+    
+    # Paper Seeing results
+    original_marks = models.DecimalField(max_digits=5, decimal_places=2)
+    # revalued_marks = models.DecimalField(
+    #     max_digits=5,
+    #     decimal_places=2,
+    #     blank=True,
+    #     null=True
+    # )
+    # marks_changed = models.BooleanField(default=False)
+    
+    # Admin fields
+    admin_remarks = models.TextField(blank=True, null=True)
+    processed_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_paper_seeing_requests'
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'paper_seeing_requests'
         unique_together = ['student', 'result']
         ordering = ['-created_at']
         indexes = [

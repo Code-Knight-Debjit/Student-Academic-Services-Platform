@@ -164,6 +164,126 @@ def generate_revaluation_receipt(reval_request):
     
     return receipt_url
 
+def generate_paper_seeing_receipt(paper_seeing_request):
+    """
+    Generate and save payment receipt for paper_seeing.
+    
+    Args:
+        paper_seeing_request: PaperSeeingRequest instance
+    
+    Returns:
+        str: URL to saved receipt PDF
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch)
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'ReceiptTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#1e40af'),
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#6b7280'),
+        spaceAfter=30
+    )
+    
+    # Title
+    title = Paragraph("PAYMENT RECEIPT", title_style)
+    elements.append(title)
+    
+    subtitle = Paragraph("paper_seeing Fee Payment", subtitle_style)
+    elements.append(subtitle)
+    
+    # Receipt Information
+    receipt_data = [
+        ['Receipt No:', f"REV-{str(paper_seeing_request.id).zfill(6)}"],
+        ['Payment ID:', paper_seeing_request.razorpay_payment_id or 'N/A'],
+        ['Order ID:', paper_seeing_request.razorpay_order_id],
+        ['Date:', paper_seeing_request.created_at.strftime('%d %B %Y, %I:%M %p')],
+        ['', ''],
+        ['Student USN:', paper_seeing_request.student.usn],
+        ['Student Name:', paper_seeing_request.student.name],
+        ['', ''],
+        ['Course Code:', paper_seeing_request.result.course.course_code],
+        ['Course Title:', paper_seeing_request.result.course.course_title],
+        ['Semester:', str(paper_seeing_request.result.semester)],
+        ['', ''],
+        ['Amount Paid:', f'₹ {paper_seeing_request.amount_paid}'],
+        ['Payment Status:', 'SUCCESS'],
+        ['Payment Method:', 'Razorpay'],
+    ]
+    
+    receipt_table = Table(receipt_data, colWidths=[2.5*inch, 4*inch])
+    receipt_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#374151')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('LINEBELOW', (0, -3), (-1, -3), 2, colors.HexColor('#1e40af')),
+        ('BACKGROUND', (0, -2), (-1, -1), colors.HexColor('#f3f4f6')),
+    ]))
+    
+    elements.append(receipt_table)
+    elements.append(Spacer(1, 0.5*inch))
+    
+    # Footer note
+    note = Paragraph(
+        "This is a computer-generated receipt and does not require a signature. "
+        "Please retain this receipt for your records.",
+        ParagraphStyle(
+            'Note',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#6b7280'),
+            alignment=TA_CENTER,
+            fontName='Helvetica-Oblique'
+        )
+    )
+    elements.append(note)
+    
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Institution details (customize as needed)
+    footer = Paragraph(
+        f"Generated on: {timezone.now().strftime('%d %B %Y, %I:%M %p')}<br/>"
+        "Student Results System | Contact: support@yourschool.edu",
+        ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#9ca3af'),
+            alignment=TA_CENTER
+        )
+    )
+    elements.append(footer)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Save to media folder
+    filename = f"receipt_paper_seeing_{paper_seeing_request.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    receipt_url = save_pdf_to_media(buffer, 'paper_seeing', filename)
+    
+    return receipt_url
+
 
 def generate_makeup_exam_receipt(makeup_request):
     """

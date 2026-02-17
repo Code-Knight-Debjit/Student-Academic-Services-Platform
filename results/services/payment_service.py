@@ -314,6 +314,153 @@ class RevaluationPaymentService:
                 'error': str(e)
             }
 
+class PaperSeeingPaymentService:
+    """Service for handling paper seeing payments."""
+    
+    def __init__(self):
+        self.razorpay = RazorpayService()
+    
+    def create_PaperSeeing_order(self, student, result, config):
+        """
+        Create payment order for PaperSeeing.
+        
+        Args:
+            student: Student instance
+            result: Result instance
+            config: PaperSeeingConfiguration instance
+        
+        Returns:
+            dict: Order details or error
+        """
+        from results.models import PaperSeeingRequest
+        
+        # Check if request already exists
+        existing = PaperSeeingRequest.objects.filter(
+            student=student,
+            result=result,
+            status__in=['PENDING', 'PAID', 'PROCESSING']
+        ).first()
+        
+        if existing:
+            return {
+                'success': False,
+                'error': 'PaperSeeing request already exists for this subject'
+            }
+        
+        # Generate unique receipt ID
+        receipt_id = f"PAPERSEEING-{student.usn}-{result.course.course_code}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Create Razorpay order
+        order_response = self.razorpay.create_order(
+            amount=config.fee_per_subject,
+            receipt_id=receipt_id,
+            notes={
+                'student_usn': student.usn,
+                'student_name': student.name,
+                'course_code': result.course.course_code,
+                'purpose': 'PaperSeeing Fee'
+            }
+        )
+        
+        if not order_response['success']:
+            return order_response
+        
+        # Create pending PaperSeeing request
+        paper_seeing_request = PaperSeeingRequest.objects.create(
+            student=student,
+            result=result,
+            razorpay_order_id=order_response['order_id'],
+            amount_paid=config.fee_per_subject,
+            status='PENDING'
+        )
+        
+        return {
+            'success': True,
+            'order_id': order_response['order_id'],
+            'amount': config.fee_per_subject,
+            'request_id': paper_seeing_request.id,
+            'receipt_id': receipt_id
+        }
+    
+    def complete_payment(self, order_id, payment_id, signature):
+        """
+        Complete PaperSeeing payment after Razorpay confirmation.
+        
+        Args:
+            order_id: Razorpay order ID
+            payment_id: Razorpay payment ID
+            signature: Payment signature
+        
+        Returns:
+            dict: Success status and request details
+        """
+        from results.models import PaperSeeingRequest
+        
+        # Verify signature
+        if not self.razorpay.verify_payment_signature(order_id, payment_id, signature):
+            return {
+                'success': False,
+                'error': 'Invalid payment signature'
+            }
+        
+        try:
+            # Get PaperSeeing request
+            paper_seeing_request = PaperSeeingRequest.objects.get(
+                razorpay_order_id=order_id
+            )
+            
+            # Update payment details
+            paper_seeing_request.razorpay_payment_id = payment_id
+            paper_seeing_request.razorpay_signature = signature
+            paper_seeing_request.status = 'PAID'
+            paper_seeing_request.save()
+            
+            # Generate receipt (implement separately)
+            from results.services.receipt_service import generate_paper_seeing_receipt
+            receipt_url = generate_paper_seeing_receipt(paper_seeing_request)
+            paper_seeing_request.receipt_url = receipt_url
+            paper_seeing_request.save()
+            
+            # Create notification
+            # from results.signals import create_notification
+            # create_notification(
+            #     student=paper_seeing_request.student,
+            #     notification_type='PAYMENT_SUCCESS',
+            #     title='PaperSeeing Payment Successful',
+            #     message=f'Your payment for {paper_seeing_request.result.course.course_title} PaperSeeing has been received.',
+            #     PaperSeeing_request=paper_seeing_request
+            # )
+            
+            # Log audit trail
+            from results.signals import log_audit
+            log_audit(
+                action_type='PaperSeeing_PAID',
+                student=paper_seeing_request.student,
+                description=f'PaperSeeing payment completed for {paper_seeing_request.result.course.course_code}',
+                metadata={
+                    'payment_id': payment_id,
+                    'amount': float(paper_seeing_request.amount_paid),
+                    'course': paper_seeing_request.result.course.course_code
+                }
+            )
+            
+            return {
+                'success': True,
+                'request': paper_seeing_request,
+                'receipt_url': receipt_url
+            }
+        
+        except PaperSeeingRequest.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'PaperSeeing request not found'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
 
 class MakeupExamPaymentService:
     """Service for handling makeup exam payments."""

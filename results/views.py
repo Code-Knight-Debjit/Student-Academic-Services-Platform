@@ -37,7 +37,6 @@ def admin_panel(request):
     return render(request, 'admin_panel/dashboard.html', {
         'is_proctor': is_proctor,
         'is_admin': is_admin,
-        'data': 'Data for admin panel goes here'
     })
 
 def is_staff_or_professor(user):
@@ -47,7 +46,6 @@ def is_staff_or_professor(user):
 def is_proctor(user):
     """Check if user has proctor role."""
     return user.groups.filter(name='Proctor').exists() or user.is_superuser
-
 
 def get_failed_subjects(student, semester):
     """Get all failed subjects for a student in a semester."""
@@ -115,11 +113,13 @@ def home(request):
                 # ===== NEW: Get revaluation configuration =====
                 try:
                     reval_config = RevaluationConfiguration.objects.first()
+                    paperseeing_config = PaperSeeingConfiguration.objects.first()
                 except:
                     reval_config = None
+                    paperseeing_config = None
                 
                 # ===== NEW: Check revaluation status for each result =====
-                results_with_reval = []
+                results_with_reval_and_paperseeing = []
                 for result in results:
                     existing_reval = None
                     can_request_reval = False
@@ -137,11 +137,29 @@ def home(request):
                     except:
                         pass
                     
-                    results_with_reval.append({
+                    can_request_paperseeing = False
+                    existing_paperseeing = None
+                    try:
+                        # Check if paperseeing already requested
+                        existing_paperseeing = PaperSeeingRequest.objects.filter(
+                            student=student,
+                            result=result
+                        ).first()
+                        
+                        # Can request if window open and no existing request
+                        if paperseeing_config and paperseeing_config.is_active() and not existing_paperseeing:
+                            can_request_paperseeing = True
+                    except:
+                        pass
+
+                    results_with_reval_and_paperseeing.append({
                         'result': result,
                         'can_request_reval': can_request_reval,
                         'reval_status': existing_reval.status if existing_reval else None,
-                        'reval_request': existing_reval
+                        'reval_request': existing_reval,
+                        'can_request_paperseeing': can_request_paperseeing,
+                        'paperseeing_status': existing_paperseeing.status if existing_paperseeing else None,
+                        'paperseeing_request': existing_paperseeing
                     })
                 
                 # ===== NEW: Check for failed subjects (makeup exam eligibility) =====
@@ -157,7 +175,7 @@ def home(request):
                     'student': student,
                     'metadata': metadata,
                     'results': results,  # Keep for backward compatibility
-                    'results_with_reval': results_with_reval,  # NEW: Enhanced results
+                    'results_with_reval_and_paperseeing': results_with_reval_and_paperseeing    ,  # NEW: Enhanced results
                     'semester': semester,
                     'total_marks': total_marks,
                     'avg_marks': round(avg_marks, 2),
@@ -165,6 +183,10 @@ def home(request):
                     
                     # NEW: Revaluation feature
                     'reval_config': reval_config,
+
+                    #NEW: Paper Seeing Feature
+                    'paperseeing_config': paperseeing_config,
+                    'results_with_paperseeing': results_with_reval_and_paperseeing,
                     
                     # NEW: Makeup exam feature
                     'show_makeup_tab': show_makeup_tab,
@@ -475,14 +497,15 @@ from django.db.models import Q, Count
 from django_ratelimit.decorators import ratelimit
 from django.db import transaction
 
-from .models import Student, Result, Course
+from .models import Student, Result, Course, Paper_Seeing
 from .models import (
     RevaluationConfiguration, RevaluationRequest,
     MakeupExamConfiguration, MakeupExamRequest,
-    StudentNotification
+    StudentNotification, PaperSeeingConfiguration, Paper_Seeing, PaperSeeingRequest
 )
 from .services.payment_service import (
     RevaluationPaymentService,
+    PaperSeeingPaymentService,
     MakeupExamPaymentService
 )
 from .services.hall_ticket_service import generate_hall_ticket_pdf
@@ -644,97 +667,33 @@ def verify_revaluation_payment(request):
         }, status=500)
 
 
-# ============================================================================
-# MAKEUP EXAM VIEWS
-# ============================================================================
-
-@ratelimit(key='ip', rate='20/m', method='GET')
-def makeup_exam_page(request, usn, semester):
-    """Display makeup exam registration page for failed subjects."""
-    try:
-        student = get_object_or_404(Student, usn=usn)
-        
-        # Get failed subjects
-        failed_results = get_failed_subjects(student, semester)
-        
-        if not failed_results.exists():
-            messages.info(request, 'You have no failed subjects.')
-            return redirect('student_result_view_extended', usn=usn, semester=semester)
-        
-        # Get configurationMakeupExamRequest
-        config = MakeupExamConfiguration.objects.first()
-        
-        # Check for existing request
-        existing_request = MakeupExamRequest.objects.filter(
-            student=student,
-            semester=semester,
-            status__in=['PENDING', 'PAID', 'ADMIN_VERIFIED', 'PROCTOR_VERIFIED', 'APPROVED']
-        ).first()
-        
-        context = {
-            'student': student,
-            'semester': semester,
-            'failed_results': failed_results,
-            'config': config,
-            'existing_request': existing_request,
-            'can_register': config and config.is_active() and not existing_request,
-        }
-        
-        return render(request, 'results/makeup_exam.html', context)
-        
-    except Exception as e:
-        messages.error(request, f'Error: {str(e)}')
-        return redirect('home')
-
-
 @ratelimit(key='ip', rate='10/m', method='POST')
 @require_http_methods(["POST"])
-def create_makeup_exam_order(request):
-    """Create Razorpay order for makeup exam registration."""
+def create_paper_seeing_order(request):
+    """Create Razorpay order for paper_seeing."""
     try:
-        usn = request.POST.get('usn')
-        semester = int(request.POST.get('semester'))
-        subject_ids = request.POST.getlist('subjects[]')
-        
-        student = get_object_or_404(Student, usn=usn)
-        
-        # Validate subjects
-        subjects = Course.objects.filter(id__in=subject_ids)
-        
-        if not subjects.exists():
-            return JsonResponse({
-                'success': False,
-                'error': 'No subjects selected'
-            }, status=400)
+        result_id = request.POST.get('result_id')
+        result = get_object_or_404(Result, id=result_id)
+        student = result.student
         
         # Get configuration
-        config = MakeupExamConfiguration.objects.first()
+        config = PaperSeeingConfiguration.objects.first()
         if not config or not config.is_active():
             return JsonResponse({
                 'success': False,
-                'error': 'Makeup exam registration is currently closed'
+                'error': 'Paper Seeing window is currently closed'
             })
         
-        # Validate that selected subjects are actually failed
-        failed_subject_ids = get_failed_subjects(student, semester).values_list('course_id', flat=True)
-        invalid_subjects = [s.id for s in subjects if s.id not in failed_subject_ids]
-        
-        if invalid_subjects:
-            return JsonResponse({
-                'success': False,
-                'error': 'You can only register for failed subjects'
-            }, status=400)
-        
         # Create payment order
-        payment_service = MakeupExamPaymentService()
-        order_response = payment_service.create_makeup_exam_order(
+        payment_service = PaperSeeingPaymentService()
+        order_response = payment_service.create_PaperSeeing_order(
             student=student,
-            subjects=list(subjects),
-            semester=semester,
+            result=result,
             config=config
         )
         
         if order_response['success']:
+            # Return Razorpay order details for frontend
             return JsonResponse({
                 'success': True,
                 'order_id': order_response['order_id'],
@@ -742,7 +701,8 @@ def create_makeup_exam_order(request):
                 'currency': 'INR',
                 'razorpay_key': os.getenv("RAZORPAY_KEY_ID"),
                 'student_name': student.name,
-                'subject_count': order_response['subject_count']
+                'student_email': student.metadata.email if hasattr(student.metadata, 'email') else '',
+                'student_contact': student.metadata.phone if hasattr(student.metadata, 'phone') else ''
             })
         else:
             return JsonResponse(order_response, status=400)
@@ -756,8 +716,8 @@ def create_makeup_exam_order(request):
 
 @ratelimit(key='ip', rate='10/m', method='POST')
 @require_http_methods(["POST"])
-def verify_makeup_exam_payment(request):
-    """Verify and complete makeup exam payment."""
+def verify_paperseeing_payment(request):
+    """Verify and complete paperseeing payment."""
     try:
         order_id = request.POST.get('razorpay_order_id')
         payment_id = request.POST.get('razorpay_payment_id')
@@ -770,13 +730,13 @@ def verify_makeup_exam_payment(request):
             }, status=400)
         
         # Complete payment
-        payment_service = MakeupExamPaymentService()
+        payment_service = PaperSeeingPaymentService()
         result = payment_service.complete_payment(order_id, payment_id, signature)
         
         if result['success']:
             return JsonResponse({
                 'success': True,
-                'message': 'Payment successful! Your makeup exam registration has been submitted for verification.',
+                'message': 'Payment successful! Your paperseeing request has been submitted.',
                 'receipt_url': result['receipt_url']
             })
         else:
@@ -787,6 +747,151 @@ def verify_makeup_exam_payment(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+# ============================================================================
+# MAKEUP EXAM VIEWS
+# ============================================================================
+
+# @ratelimit(key='ip', rate='20/m', method='GET')
+# def makeup_exam_page(request, usn, semester):
+#     """Display makeup exam registration page for failed subjects."""
+#     try:
+#         student = get_object_or_404(Student, usn=usn)
+        
+#         # Get failed subjects
+#         failed_results = get_failed_subjects(student, semester)
+        
+#         if not failed_results.exists():
+#             messages.info(request, 'You have no failed subjects.')
+#             return redirect('student_result_view_extended', usn=usn, semester=semester)
+        
+#         # Get configurationMakeupExamRequest
+#         config = MakeupExamConfiguration.objects.first()
+        
+#         # Check for existing request
+#         existing_request = MakeupExamRequest.objects.filter(
+#             student=student,
+#             semester=semester,
+#             status__in=['PENDING', 'PAID', 'ADMIN_VERIFIED', 'PROCTOR_VERIFIED', 'APPROVED']
+#         ).first()
+        
+#         context = {
+#             'student': student,
+#             'semester': semester,
+#             'failed_results': failed_results,
+#             'config': config,
+#             'existing_request': existing_request,
+#             'can_register': config and config.is_active() and not existing_request,
+#         }
+        
+#         return render(request, 'results/makeup_exam.html', context)
+        
+#     except Exception as e:
+#         messages.error(request, f'Error: {str(e)}')
+#         return redirect('home')
+
+
+# @ratelimit(key='ip', rate='10/m', method='POST')
+# @require_http_methods(["POST"])
+# def create_makeup_exam_order(request):
+#     """Create Razorpay order for makeup exam registration."""
+#     try:
+#         usn = request.POST.get('usn')
+#         semester = int(request.POST.get('semester'))
+#         subject_ids = request.POST.getlist('subjects[]')
+        
+#         student = get_object_or_404(Student, usn=usn)
+        
+#         # Validate subjects
+#         subjects = Course.objects.filter(id__in=subject_ids)
+        
+#         if not subjects.exists():
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': 'No subjects selected'
+#             }, status=400)
+        
+#         # Get configuration
+#         config = MakeupExamConfiguration.objects.first()
+#         if not config or not config.is_active():
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': 'Makeup exam registration is currently closed'
+#             })
+        
+#         # Validate that selected subjects are actually failed
+#         failed_subject_ids = get_failed_subjects(student, semester).values_list('course_id', flat=True)
+#         invalid_subjects = [s.id for s in subjects if s.id not in failed_subject_ids]
+        
+#         if invalid_subjects:
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': 'You can only register for failed subjects'
+#             }, status=400)
+        
+#         # Create payment order
+#         payment_service = MakeupExamPaymentService()
+#         order_response = payment_service.create_makeup_exam_order(
+#             student=student,
+#             subjects=list(subjects),
+#             semester=semester,
+#             config=config
+#         )
+        
+#         if order_response['success']:
+#             return JsonResponse({
+#                 'success': True,
+#                 'order_id': order_response['order_id'],
+#                 'amount': float(order_response['amount']),
+#                 'currency': 'INR',
+#                 'razorpay_key': os.getenv("RAZORPAY_KEY_ID"),
+#                 'student_name': student.name,
+#                 'subject_count': order_response['subject_count']
+#             })
+#         else:
+#             return JsonResponse(order_response, status=400)
+    
+#     except Exception as e:
+#         return JsonResponse({
+#             'success': False,
+#             'error': str(e)
+#         }, status=500)
+
+
+# @ratelimit(key='ip', rate='10/m', method='POST')
+# @require_http_methods(["POST"])
+# def verify_makeup_exam_payment(request):
+#     """Verify and complete makeup exam payment."""
+#     try:
+#         order_id = request.POST.get('razorpay_order_id')
+#         payment_id = request.POST.get('razorpay_payment_id')
+#         signature = request.POST.get('razorpay_signature')
+        
+#         if not all([order_id, payment_id, signature]):
+#             return JsonResponse({
+#                 'success': False,
+#                 'error': 'Missing payment details'
+#             }, status=400)
+        
+#         # Complete payment
+#         payment_service = MakeupExamPaymentService()
+#         result = payment_service.complete_payment(order_id, payment_id, signature)
+        
+#         if result['success']:
+#             return JsonResponse({
+#                 'success': True,
+#                 'message': 'Payment successful! Your makeup exam registration has been submitted for verification.',
+#                 'receipt_url': result['receipt_url']
+#             })
+#         else:
+#             return JsonResponse(result, status=400)
+    
+#     except Exception as e:
+#         return JsonResponse({
+#             'success': False,
+#             'error': str(e)
+#         }, status=500)
 
 
 # ============================================================================
@@ -832,6 +937,84 @@ def admin_revaluation_requests(request):
     }
     
     return render(request, 'admin_panel/revaluation_requests.html', context)
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def admin_search_requests(request):
+    """Admin view for managing revaluation requests."""
+    # Filters
+    # status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    
+    requests_qs = Student.objects.order_by('-created_at')
+    
+    # if status_filter:
+    #     requests_qs = requests_qs.filter(status=status_filter)
+    
+    if search:
+        requests_qs = requests_qs.filter(
+            Q(usn__icontains=search) |
+            Q(name__icontains=search)
+        )
+    
+    # # Statistics
+    # stats = {
+    #     'total': RevaluationRequest.objects.count(),
+    #     'pending': RevaluationRequest.objects.filter(status='PAID').count(),
+    #     'processing': RevaluationRequest.objects.filter(status='PROCESSING').count(),
+    #     'completed': RevaluationRequest.objects.filter(status='COMPLETED').count(),
+    # }
+    
+    context = {
+        'requests': requests_qs,
+        # 'stats': stats,
+        # 'status_filter': status_filter,
+        'search': search,
+        'is_admin': request.user.is_superuser,
+    }
+    
+    return render(request, 'admin_panel/student_search.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
+def admin_paperseeing_requests(request):
+    """Admin view for managing paperseeing requests."""
+    # Filters
+    status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    
+    requests_qs = PaperSeeingRequest.objects.select_related(
+        'student', 'result__course'
+    ).order_by('-created_at')
+    
+    if status_filter:
+        requests_qs = requests_qs.filter(status=status_filter)
+    
+    if search:
+        requests_qs = requests_qs.filter(
+            Q(student__usn__icontains=search) |
+            Q(student__name__icontains=search) |
+            Q(result__course__course_code__icontains=search)
+        )
+    
+    # Statistics
+    stats = {
+        'total': PaperSeeingRequest.objects.count(),
+        'pending': PaperSeeingRequest.objects.filter(status='PAID').count(),
+        'processing': PaperSeeingRequest.objects.filter(status='PROCESSING').count(),
+        'completed': PaperSeeingRequest.objects.filter(status='COMPLETED').count(),
+    }
+    
+    context = {
+        'requests': requests_qs,
+        'stats': stats,
+        'status_filter': status_filter,
+        'search': search,
+        'is_admin': request.user.is_superuser,
+    }
+    
+    return render(request, 'admin_panel/paperseeing_requests.html', context)
 
 
 @login_required
@@ -1074,7 +1257,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
-from .models import Student, Result, RevaluationRequest, MakeupExamRequest
+from .models import Student, Result, RevaluationRequest, MakeupExamRequest, PaperSeeingRequest
 
 
 # ============================================================================
@@ -1462,7 +1645,7 @@ def revaluation_management(request):
     }
     
     # Pagination
-    paginator = Paginator(requests_list.order_by('-created_at'), 25)
+    paginator = Paginator(requests_list.order_by('-created_at'), 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -1477,6 +1660,65 @@ def revaluation_management(request):
     }
     
     return render(request, 'admin_panel/revaluation_management.html', context)
+
+def paperseeing_management(request):
+    """
+    Manage all paperseeing requests with search and filters.
+    """
+    query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    requests_list = PaperSeeingRequest.objects.select_related(
+        'student', 'result__course'
+    ).all()
+    
+    # Search'
+    if query:
+        requests_list = requests_list.filter(
+            Q(student__usn__icontains=query) |
+            Q(student__name__icontains=query) |
+            Q(result__course__course_code__icontains=query) |
+            Q(result__course__course_title__icontains=query)
+        )
+    
+    # Status filter
+    if status_filter:
+        requests_list = requests_list.filter(status=status_filter)
+    
+    # Date filters
+    if date_from:
+        requests_list = requests_list.filter(created_at__gte=date_from)
+    if date_to:
+        requests_list = requests_list.filter(created_at__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': PaperSeeingRequest.objects.count(),
+        'pending': PaperSeeingRequest.objects.filter(status='PENDING').count(),
+        'paid': PaperSeeingRequest.objects.filter(status='PAID').count(),
+        'processing': PaperSeeingRequest.objects.filter(status='PROCESSING').count(),
+        'completed': PaperSeeingRequest.objects.filter(status='COMPLETED').count(),
+        'rejected': PaperSeeingRequest.objects.filter(status='REJECTED').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(requests_list.order_by('-created_at'), 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'requests': page_obj,
+        'stats': stats,
+        'query': query,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_count': requests_list.count(),
+    }
+    
+    return render(request, 'admin_panel/paperseeing_management.html', context)
 
 @login_required
 @user_passes_test(is_staff_or_professor)
@@ -1522,7 +1764,7 @@ def makeup_exam_management(request):
     }
     
     # Pagination
-    paginator = Paginator(requests_list.order_by('-created_at'), 25)
+    paginator = Paginator(requests_list.order_by('-created_at'), 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     

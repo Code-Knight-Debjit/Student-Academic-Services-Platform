@@ -18,21 +18,31 @@ urlpatterns = [
     
     path('revaluation/verify-payment/', 
          views.verify_revaluation_payment, 
-         name='verify_revaluation_payment'),
+         name='verify_revaluation_payment'),   
+
+    path('paperseeing/create-order/', 
+         views.create_paper_seeing_order, 
+         name='create_paper_seeing_order'),
+    
+    path('paperseeing/verify-payment/', 
+         views.verify_paperseeing_payment, 
+         name='verify_paper_seeing_payment'),
+
+     
     # ========================================================================
     # NEW URLS - Makeup Exam
     # ========================================================================
-    path('makeup-exam/<str:usn>/<int:semester>/', 
-         views.makeup_exam_page, 
-         name='makeup_exam_page'),
+#     path('makeup-exam/<str:usn>/<int:semester>/', 
+#          views.makeup_exam_page, 
+#          name='makeup_exam_page'),
     
-    path('makeup-exam/create-order/', 
-         views.create_makeup_exam_order, 
-         name='create_makeup_exam_order'),
+#     path('makeup-exam/create-order/', 
+#          views.create_makeup_exam_order, 
+#          name='create_makeup_exam_order'),
     
-    path('makeup-exam/verify-payment/', 
-         views.verify_makeup_exam_payment, 
-         name='verify_makeup_exam_payment'),
+#     path('makeup-exam/verify-payment/', 
+#          views.verify_makeup_exam_payment, 
+#          name='verify_makeup_exam_payment'),
     
     path('makeup-exam/hall-ticket/<int:request_id>/', 
          views.download_hall_ticket, 
@@ -47,7 +57,15 @@ urlpatterns = [
     
     path('admin/revaluation-requests/', 
          views.admin_revaluation_requests, 
-         name='admin_revaluation_requests'),
+         name='admin_revaluation_requests'), 
+
+    path('admin/student-list/', 
+         views.admin_search_requests, 
+         name='admin_student_list'), 
+
+    path('admin/paperseeing-requests/', 
+         views.admin_paperseeing_requests, 
+         name='admin_paperseeing_requests'),
     
     path('admin/makeup-exam-requests/', 
          views.admin_makeup_exam_requests, 
@@ -93,6 +111,9 @@ urlpatterns = [
 
      # Revaluation Management
      path('admin-panel/revaluations/', views.revaluation_management, name='revaluation_management'),
+
+     # paperseeing Management
+     path('admin-panel/paperseeings/', views.paperseeing_management, name='paperseeing_management'),
 
      # Makeup Exam Management
      path('admin-panel/makeup-exams/', views.makeup_exam_management, name='makeup_exam_management'),

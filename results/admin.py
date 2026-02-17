@@ -16,9 +16,12 @@ from .models import (
     Student,
     StudentMetadata,
     Course,
+    Paper_Seeing,
     Result,
     UploadHistory,
     RevaluationConfiguration,
+    PaperSeeingConfiguration,
+    PaperSeeingRequest,
     RevaluationRequest,
     MakeupExamConfiguration,
     MakeupExamRequest,
@@ -212,6 +215,131 @@ class RevaluationRequestAdmin(admin.ModelAdmin):
     export_requests.short_description = "Export to CSV"
 
 
+@admin.register(PaperSeeingRequest)
+class PaperSeeingRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 
+        'student_info', 
+        'course_info', 
+        'original_marks',
+        'status', 
+        'amount_paid', 
+        'receipt_link', 
+        'created_at'
+    ]
+    list_filter = ['status', 'created_at']
+    search_fields = [
+        'student__usn', 
+        'student__name', 
+        'result__course__course_code',
+        'result__course__course_title'
+    ]
+    readonly_fields = [
+        'razorpay_order_id', 
+        'razorpay_payment_id', 
+        'razorpay_signature', 
+        'original_marks', 
+        'receipt_link', 
+        'created_at', 
+        'updated_at'
+    ]
+    
+    list_per_page = 50
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Student & Course', {
+            'fields': ('student', 'result', 'original_marks')
+        }),
+        ('Payment Details', {
+            'fields': ('razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature', 'amount_paid')
+        }),
+        ('Status', {
+            'fields': ('status', 'receipt_link')
+        }),
+        ('Paper Seeing Results', {
+            'fields': ('admin_remarks', 'processed_by', 'processed_at'),
+            'description': ''
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def student_info(self, obj):
+        return format_html(
+            '<strong>{}</strong><br/><small>{}</small>',
+            obj.student.usn,
+            obj.student.name
+        )
+    student_info.short_description = 'Student'
+    
+    def course_info(self, obj):
+        return format_html(
+            '<strong>{}</strong><br/><small>{}</small>',
+            obj.result.course.course_code,
+            obj.result.course.course_title[:30] + ('...' if len(obj.result.course.course_title) > 30 else '')
+        )
+    course_info.short_description = 'Course'
+    
+    # def edit_marks_link(self, obj):
+    #     """Link to edit marks page."""
+    #     if obj.status in ['PAID', 'PROCESSING']:
+    #         url = reverse('admin_edit_revaluation', args=[obj.result.id])
+    #         return format_html(
+    #             '<a href="{}" class="button" style="background-color: #417690; color: white;">✏️ Edit Marks</a>',
+    #             url
+    #         )
+    #     elif obj.status == 'COMPLETED':
+    #         return format_html(
+    #             '<span style="color: green;">✓ Completed</span>'
+    #         )
+    #     return '-'
+    # edit_marks_link.short_description = 'Action'
+    
+    def receipt_link(self, obj):
+        if obj.receipt_url:
+            return format_html(
+                '<a href="{}" target="_blank" class="button">📄 Download</a>',
+                obj.receipt_url
+            )
+        return "No receipt"
+    receipt_link.short_description = 'Receipt'
+    
+    # Custom actions
+    actions = ['mark_as_processing', 'export_requests']
+    
+    def mark_as_processing(self, request, queryset):
+        updated = queryset.filter(status='PAID').update(status='PROCESSING')
+        self.message_user(request, f'{updated} request(s) marked as processing.')
+    mark_as_processing.short_description = "Mark as Processing"
+    
+    def export_requests(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="revaluation_requests.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'USN', 'Student', 'Course', 'Original Marks', 'Revalued Marks', 'Status', 'Amount'])
+        
+        for req in queryset:
+            writer.writerow([
+                req.id,
+                req.student.usn,
+                req.student.name,
+                req.result.course.course_code,
+                req.original_marks,
+                req.status,
+                req.amount_paid
+            ])
+        
+        return response
+    export_requests.short_description = "Export to CSV"
+
+
 # ============================================================================
 # ENHANCED MAKEUP EXAM REQUEST ADMIN
 # ============================================================================
@@ -361,6 +489,18 @@ class RevaluationConfigurationAdmin(admin.ModelAdmin):
     
     def has_add_permission(self, request):
         return not RevaluationConfiguration.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+
+@admin.register(PaperSeeingConfiguration)
+class PaperSeeingConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['is_window_open', 'window_start_date', 'window_end_date', 'fee_per_subject', 'updated_at']
+    list_filter = ['is_window_open']
+    
+    def has_add_permission(self, request):
+        return not PaperSeeingConfiguration.objects.exists()
     
     def has_delete_permission(self, request, obj=None):
         return False
