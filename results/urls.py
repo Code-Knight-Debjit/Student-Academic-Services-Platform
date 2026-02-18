@@ -59,9 +59,13 @@ urlpatterns = [
          views.admin_revaluation_requests, 
          name='admin_revaluation_requests'), 
 
-    path('admin/student-list/', 
+    path('admin/student-search/', 
          views.admin_search_requests, 
          name='admin_student_list'), 
+
+    path('admin/student-list/', 
+         views.admin_student_list_requests, 
+         name='admin_student_list_requests'), 
 
     path('admin/paperseeing-requests/', 
          views.admin_paperseeing_requests, 

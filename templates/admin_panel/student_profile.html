@@ -1,0 +1,271 @@
+{% extends "base/base.html" %}
+
+{% block title %}{{ student.usn }} - Student Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{% url 'student_search' %}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 mb-4">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Student Search
+        </a>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Student Profile</h1>
+        <p class="text-gray-600 dark:text-gray-400">Complete information and academic history</p>
+    </div>
+    
+    <!-- Student Info Card -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-xl p-8 mb-8 text-white">
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-3xl font-bold mb-2">{{ student.usn }}</h2>
+                <p class="text-blue-100 text-xl mb-4">{{ student.name }}</p>
+                <div class="flex gap-4">
+                    {% if student.department %}
+                    <span class="bg-white/20 px-4 py-2 rounded-lg font-medium">{{ student.department }}</span>
+                    {% endif %}
+                    {% if student.batch %}
+                    <span class="bg-white/20 px-4 py-2 rounded-lg font-medium">Batch {{ student.batch }}</span>
+                    {% endif %}
+                    {% if metadata and metadata.dob %}
+                    <span class="bg-white/20 px-4 py-2 rounded-lg font-medium">DOB: {{ metadata.dob }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-blue-100 text-sm mb-1">Average Marks</p>
+                <p class="text-5xl font-bold">{{ avg_marks }}</p>
+                <p class="text-blue-100 text-sm mt-2">Out of 100</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-6">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Results</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ total_results }}</p>
+        </div>
+        <div class="bg-red-50 dark:bg-red-900/20 rounded-xl shadow-md border border-red-200 dark:border-red-800 p-6">
+            <p class="text-sm text-red-600 dark:text-red-400 mb-1">Failed Subjects</p>
+            <p class="text-3xl font-bold text-red-600 dark:text-red-400">{{ failed_count }}</p>
+        </div>
+        <div class="bg-pink-50 dark:bg-pink-900/20 rounded-xl shadow-md border border-pink-200 dark:border-pink-800 p-6">
+            <p class="text-sm text-pink-600 dark:text-pink-400 mb-1">Revaluation Requests</p>
+            <p class="text-3xl font-bold text-pink-600 dark:text-pink-400">{{ revaluation_requests.count }}</p>
+        </div>
+        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl shadow-md border border-orange-200 dark:border-orange-800 p-6">
+            <p class="text-sm text-orange-600 dark:text-orange-400 mb-1">Makeup Exam Requests</p>
+            <p class="text-3xl font-bold text-orange-600 dark:text-orange-400">{{ makeup_requests.count }}</p>
+        </div>
+    </div>
+    
+    <!-- Tabbed Content -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
+        <!-- Tab Headers -->
+        <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex -mb-px overflow-x-auto">
+                <button onclick="switchTab('results')" id="tab-results" 
+                        class="tab-button active whitespace-nowrap px-6 py-4 font-semibold border-b-2 border-blue-600 text-blue-600">
+                    All Results
+                </button>
+                <button onclick="switchTab('revaluation')" id="tab-revaluation" 
+                        class="tab-button whitespace-nowrap px-6 py-4 font-semibold border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                    Revaluations
+                </button>
+                <button onclick="switchTab('makeup')" id="tab-makeup" 
+                        class="tab-button whitespace-nowrap px-6 py-4 font-semibold border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                    Makeup Exams
+                </button>
+                <button onclick="switchTab('notifications')" id="tab-notifications" 
+                        class="tab-button whitespace-nowrap px-6 py-4 font-semibold border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                    Notifications
+                </button>
+            </nav>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- Results Tab -->
+            <div id="content-results" class="tab-content">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-gray-700">
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Semester</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Course Code</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Course Title</th>
+                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Marks</th>
+                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for result in results %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ result.semester }}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ result.course.course_code }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ result.course.course_title|truncatewords:6 }}</td>
+                                <td class="px-4 py-3 text-center text-sm font-bold text-gray-900 dark:text-white">{{ result.final_cie_marks }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    {% if result.final_cie_marks >= 40 %}
+                                    <span class="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium">Pass</span>
+                                    {% else %}
+                                    <span class="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded-full text-xs font-medium">Fail</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No results found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Revaluation Tab -->
+            <div id="content-revaluation" class="tab-content hidden">
+                {% if revaluation_requests %}
+                <div class="space-y-4">
+                    {% for req in revaluation_requests %}
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-900 dark:text-white">{{ req.result.course.course_code }} - {{ req.result.course.course_title|truncatewords:5 }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    Original Marks: <span class="font-medium">{{ req.original_marks }}</span> → 
+                                    Revalued: <span class="font-medium">{{ req.revalued_marks|default:"Pending" }}</span>
+                                </p>
+                                {% if req.admin_remarks %}
+                                <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">Remarks: {{ req.admin_remarks }}</p>
+                                {% endif %}
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ml-4
+                                {% if req.status == 'COMPLETED' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                {% elif req.status == 'PROCESSING' %}bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400
+                                {% elif req.status == 'PAID' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No revaluation requests</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Makeup Exam Tab -->
+            <div id="content-makeup" class="tab-content hidden">
+                {% if makeup_requests %}
+                <div class="space-y-4">
+                    {% for req in makeup_requests %}
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white">{{ req.exam_cycle }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Semester {{ req.semester }} • {{ req.get_subject_count }} subject{{ req.get_subject_count|pluralize }}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium
+                                {% if req.status == 'APPROVED' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                                {% elif req.status == 'ADMIN_VERIFIED' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400
+                                {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            {% for subject in req.subjects.all %}
+                            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs">
+                                {{ subject.course_code }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% if req.hall_ticket_url %}
+                        <div class="mt-3">
+                            <a href="{{ req.hall_ticket_url }}" target="_blank" 
+                               class="inline-flex items-center text-sm text-green-600 dark:text-green-400 hover:text-green-700">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Download Hall Ticket
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No makeup exam requests</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Notifications Tab -->
+            <div id="content-notifications" class="tab-content hidden">
+                {% if notifications %}
+                <div class="space-y-3">
+                    {% for notif in notifications %}
+                    <div class="border-l-4 {% if notif.is_read %}border-gray-300 dark:border-gray-600{% else %}border-blue-500{% endif %} pl-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-r-lg">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-900 dark:text-white">{{ notif.title }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ notif.message }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">{{ notif.created_at|timesince }} ago</p>
+                            </div>
+                            {% if not notif.is_read %}
+                            <span class="ml-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No notifications</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    
+    // Remove active state from all buttons
+    document.querySelectorAll('.tab-button').forEach(el => {
+        el.classList.remove('active', 'border-blue-600', 'text-blue-600');
+        el.classList.add('border-transparent', 'text-gray-600');
+        el.classList.add('dark:text-gray-400');
+    });
+    
+    // Show selected content
+    document.getElementById('content-' + tabName).classList.remove('hidden');
+    
+    // Activate selected button
+    const btn = document.getElementById('tab-' + tabName);
+    btn.classList.add('active', 'border-blue-600', 'text-blue-600');
+    btn.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+}
+</script>
+
+{% endblock %}

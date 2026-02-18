@@ -14,8 +14,8 @@
             </svg>
             Back to Dashboard
         </a>
-        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Revaluation Management</h1>
-        <p class="text-gray-600 dark:text-gray-400">Process and manage revaluation requests</p>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Paper Seeing Management</h1>
+        <p class="text-gray-600 dark:text-gray-400">Process and manage paper seeing requests</p>
     </div>
     
     <!-- Statistics Cards -->
@@ -64,9 +64,9 @@
                     <option value="">All Status</option>
                     <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
                     <option value="PAID" {% if status_filter == 'PAID' %}selected{% endif %}>Paid</option>
-                    <option value="PROCESSING" {% if status_filter == 'PROCESSING' %}selected{% endif %}>Processing</option>
-                    <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
-                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                    {% comment %} <option value="PROCESSING" {% if status_filter == 'PROCESSING' %}selected{% endif %}>Processing</option> {% endcomment %}
+                    {% comment %} <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option> {% endcomment %}
+                    {% comment %} <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option> {% endcomment %}
                 </select>
             </div>
             
@@ -87,8 +87,8 @@
                         <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">ID</th>
                         <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Student</th>
                         <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Course</th>
-                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Original</th>
-                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Revalued</th>
+                        {% comment %} <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Original</th> {% endcomment %}
+                        {% comment %} <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Revalued</th> {% endcomment %}
                         <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
                         <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
                         <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
@@ -106,7 +106,7 @@
                             <div class="text-sm font-medium text-gray-900 dark:text-white">{{ request.result.course.course_code }}</div>
                             <div class="text-sm text-gray-600 dark:text-gray-400">{{ request.result.course.course_title|truncatewords:4 }}</div>
                         </td>
-                        <td class="px-6 py-4 text-center">
+                        {% comment %} <td class="px-6 py-4 text-center">
                             <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ request.original_marks }}</span>
                         </td>
                         <td class="px-6 py-4 text-center">
@@ -117,7 +117,7 @@
                             {% else %}
                             <span class="text-sm text-gray-400">-</span>
                             {% endif %}
-                        </td>
+                        </td> {% endcomment %}
                         <td class="px-6 py-4 text-center">
                             <span class="px-3 py-1 rounded-full text-xs font-medium
                                 {% if request.status == 'PAID' %}bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400

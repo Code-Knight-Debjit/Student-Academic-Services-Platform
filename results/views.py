@@ -61,6 +61,7 @@ def get_failed_subjects(student, semester):
 def home(request):
     """Home page with result query form - ENHANCED VERSION."""
     context = {
+        'RECAPTCHA_SITE_KEY': os.getenv("RECAPTCHA_SITE_KEY"),        
         'form': ResultQueryForm(),
         'show_skeleton': False,
         'error_message': None,
@@ -978,6 +979,44 @@ def admin_search_requests(request):
 
 @login_required
 @user_passes_test(is_staff_or_professor)
+def admin_student_list_requests(request):
+    """Admin view for managing revaluation requests."""
+    # Filters
+    # status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    
+    requests_qs = Student.objects.order_by('-created_at')
+    
+    # if status_filter:
+    #     requests_qs = requests_qs.filter(status=status_filter)
+    
+    if search:
+        requests_qs = requests_qs.filter(
+            Q(usn__icontains=search) |
+            Q(name__icontains=search)
+        )
+    
+    # # Statistics
+    # stats = {
+    #     'total': RevaluationRequest.objects.count(),
+    #     'pending': RevaluationRequest.objects.filter(status='PAID').count(),
+    #     'processing': RevaluationRequest.objects.filter(status='PROCESSING').count(),
+    #     'completed': RevaluationRequest.objects.filter(status='COMPLETED').count(),
+    # }
+    
+    context = {
+        'requests': requests_qs,
+        # 'stats': stats,
+        # 'status_filter': status_filter,
+        'search': search,
+        'is_admin': request.user.is_superuser,
+    }
+    
+    return render(request, 'admin_panel/student_list.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_professor)
 def admin_paperseeing_requests(request):
     """Admin view for managing paperseeing requests."""
     # Filters
@@ -1661,6 +1700,8 @@ def revaluation_management(request):
     
     return render(request, 'admin_panel/revaluation_management.html', context)
 
+@login_required
+@user_passes_test(is_staff_or_professor)
 def paperseeing_management(request):
     """
     Manage all paperseeing requests with search and filters.
