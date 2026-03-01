@@ -36,11 +36,7 @@ services:
       python manage.py migrate &&
       python manage.py collectstatic --noinput &&
 
-      DJANGO_SUPERUSER_PASSWORD=${ADMIN_PASSWORD} \
-      python manage.py createsuperuser \
-        --noinput \
-        --username ${ADMIN_USERNAME} \
-        --email ${ADMIN_EMAIL} || true &&
+      python manage.py createsuperuser --noinput || true &&
 
       gunicorn student_results.wsgi:application \
         --bind 0.0.0.0:8000 \
@@ -59,6 +55,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      DJANGO_SUPERUSER_PASSWORD: ${ADMIN_PASSWORD}
+      DJANGO_SUPERUSER_USERNAME: ${ADMIN_USERNAME}
+      DJANGO_SUPERUSER_EMAIL: ${ADMIN_EMAIL}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
       interval: 15s
