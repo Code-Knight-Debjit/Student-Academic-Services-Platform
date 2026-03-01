@@ -55,11 +55,14 @@ class StudentAdmin(admin.ModelAdmin):
     
     def receipts_link(self, obj):
         """Link to view student's receipts."""
-        url = reverse('admin:student_receipts', args=[obj.pk])
-        return format_html(
-            '<a href="{}" class="button">📄 Receipts</a>',
-            url
-        )
+        try:
+            url = reverse('admin:student_receipts', args=[obj.pk])
+            return format_html(
+                '<a href="{}" class="button">📄 Receipts</a>',
+                url
+            )
+        except:
+            return "N/A"
     receipts_link.short_description = 'Receipts'
     
     # Custom actions
