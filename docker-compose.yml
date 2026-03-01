@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_DB: student_results_db
+      POSTGRES_USER: student_results_user
+      POSTGRES_PASSWORD: debjit2006@
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    container_name: django_app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DEBUG: True
+      RAZORPAY_KEY_ID: rzp_test_S53lp9VnLYtKZG
+      RAZORPAY_KEY_SECRET: yuILkzHgF02Rs6YZWu7Co8j0
+      RAZORPAY_WEBHOOK_SECRET: razorpaywebhook
+      RECAPTCHA_SITE_KEY: 6LfpDnAsAAAAANWoFmCKgiyYqDxYPtCHVF-OPC7T
+      RECAPTCHA_SECRET_KEY: 6LfpDnAsAAAAACVJ7yJ7n7JsRNkRsJ_ypnuKSVVU
+      DB_NAME: student_results_db
+      DB_USER: student_results_user
+      DB_PASSWORD: debjit2006@
+      DB_HOST: db
+      DB_PORT: 5432
+
+volumes:
+  postgres_data:
