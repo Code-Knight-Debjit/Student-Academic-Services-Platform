@@ -86,13 +86,13 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared_tunnel
     restart: always
-    command: tunnel run my-tunnel
+    command: tunnel --no-autoupdate run 9e4708c6-59f4-4b32-bce3-8a906b3adb2d
     volumes:
-      - ~/.cloudflared:/etc/cloudflared
+      - /home/code_knight_debjit/.cloudflared:/home/nonroot/.cloudflared:ro
     depends_on:
       - nginx
     healthcheck:
-      test: ["CMD", "cloudflared", "tunnel", "info", "my-tunnel"]
+      test: ["CMD", "cloudflared", "tunnel", "info", "9e4708c6-59f4-4b32-bce3-8a906b3adb2d"]
       interval: 30s
       timeout: 10s
       retries: 3
