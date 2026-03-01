@@ -1,0 +1,45 @@
+name: Deployment Automation
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            set -e  # stop on any error
+            cd /home/code_knight_debjit/Student-Academic-Services-Platform
+
+            echo "Pulling latest code..."
+            git pull origin master
+
+            echo "Rebuilding containers..."
+            docker-compose up -d --build --force-recreate
+
+            echo "Checking container health..."
+            sleep 10
+            docker-compose ps
+
+            echo "Cleaning unused images..."
+            docker system prune -f
+          EOF
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Deployment failed! Check logs."
