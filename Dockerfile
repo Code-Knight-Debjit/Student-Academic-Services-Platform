@@ -10,6 +10,8 @@ WORKDIR /app
 
 # Install system dependencies (optional but recommended)
 RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
