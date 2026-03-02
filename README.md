@@ -60,7 +60,7 @@ The platform was built with scalability and security at the forefront — capabl
 
 ## 🌐 Live Demo
 
-> *(Add your deployment URL here once available)*
+> *https://debjit-paul.me/*
 
 ---
 
