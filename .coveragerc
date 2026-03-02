@@ -3,7 +3,6 @@ source = results
 
 [report]
 omit =
-    */migrations/*
     results/admin.py
     results/admin_backup.py
     results/views_backup.py
