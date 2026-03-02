@@ -38,11 +38,7 @@ services:
 
       python manage.py createsuperuser --noinput || true &&
 
-      gunicorn student_results.wsgi:application \
-        --bind 0.0.0.0:8000 \
-        --workers 5 \
-        --threads 2 \
-        --timeout 120
+      gunicorn student_results.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120
       "
     volumes:
       - .:/app
