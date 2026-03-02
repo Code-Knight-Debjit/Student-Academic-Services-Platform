@@ -47,4 +47,4 @@ jobs:
 
       - name: Notify on failure
         if: failure()
-        run: echo "Deployment failed! Check logs."
+        run: echo "Deployment failed! Check logs in the local server."
