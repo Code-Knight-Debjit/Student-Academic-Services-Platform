@@ -164,3 +164,5 @@ def generate_result_pdf(student, metadata, results, semester):
     
     return buffer
 
+if __name__ == "__main__":
+    print("This module is a utility for generating PDFs in the Django application. It should not be run directly.")
