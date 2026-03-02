@@ -67,7 +67,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           pip install coverage
-          coverage run --source='results' manage.py test results.tests --verbosity=2
+          coverage run manage.py test results.tests --verbosity=2
           coverage report --fail-under=70
 
       - name: Upload coverage report
