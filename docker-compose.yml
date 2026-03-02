@@ -25,6 +25,8 @@ services:
     build: .
     container_name: django_app
     restart: always
+    ports:
+      - "8000:8000"
     command: >
       sh -c "
       echo 'Waiting for database...' &&
