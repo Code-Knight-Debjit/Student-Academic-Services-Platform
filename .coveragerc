@@ -1,0 +1,13 @@
+[run]
+source = results
+
+[report]
+omit =
+    */migrations/*
+    results/admin.py
+    results/admin_backup.py
+    results/views_backup.py
+    results/context_processors.py
+    results/pdf_generator.py
+    results/utils.py
+    results/services/*
