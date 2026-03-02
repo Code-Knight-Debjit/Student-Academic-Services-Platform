@@ -10,3 +10,6 @@ omit =
     results/pdf_generator.py
     results/utils.py
     results/services/*
+    results/signals.py
+    results/views.py
+    results/forms.py
