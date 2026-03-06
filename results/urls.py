@@ -7,6 +7,7 @@ from . import views
 
 urlpatterns = [
     path('download/<str:usn>/<int:semester>/', views.download_pdf, name='download_pdf'),
+    path("download-receipt/<int:pk>/", views.download_receipt, name="download_receipt"),
     
     path('receipt/<str:receipt_type>/<int:request_id>/', 
           views.download_receipt, 

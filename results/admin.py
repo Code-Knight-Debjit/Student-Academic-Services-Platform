@@ -177,12 +177,11 @@ class RevaluationRequestAdmin(admin.ModelAdmin):
     
     def receipt_link(self, obj):
         if obj.receipt_url:
-            return format_html(
-                '<a href="{}" class="button" download>📄 Download</a>',
-                obj.receipt_url
-            )
+            url = reverse("download_receipt", args=[obj.pk])
+            return format_html('<a class="button" href="{}">📄 Download</a>', url)
         return "No receipt"
-    receipt_link.short_description = 'Receipt'
+
+    receipt_link.short_description = "Receipt"
     
     # Custom actions
     actions = ['mark_as_processing', 'export_requests']

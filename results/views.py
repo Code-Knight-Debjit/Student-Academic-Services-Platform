@@ -18,7 +18,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Avg, Count
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404, FileResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -60,6 +60,8 @@ from .services.payment_service import (
 from .services.hall_ticket_service import generate_hall_ticket_pdf
 
 load_dotenv()
+
+# @ratelimit(key='ip', rate='5/m', block=True)
 
 def admin_panel(request):
     is_proctor = request.user.groups.filter(name='Proctor').exists()
@@ -1989,3 +1991,23 @@ def student_profile(request, student_id):
     }
     
     return render(request, 'admin_panel/student_profile.html', context)
+
+def download_receipt(request, pk):
+
+    is_admin = request.user.is_superuser
+    obj = get_object_or_404(RevaluationRequest, pk=pk)
+    # print(os.path.join(settings.MEDIA_ROOT, obj.receipt_url.lstrip("/")))
+    file_path = (settings.BASE_DIR / obj.receipt_url.lstrip("/")).as_posix()
+    print(file_path)
+
+    if not obj.receipt_url:
+        raise Http404("Receipt not found")
+
+    if not os.path.exists(file_path):
+        raise Http404("File does not exist")
+
+    return FileResponse(
+        open(file_path, "rb"),
+        as_attachment=True,
+        filename=os.path.basename(file_path)
+    )
