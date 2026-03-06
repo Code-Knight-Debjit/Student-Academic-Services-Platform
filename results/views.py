@@ -61,16 +61,6 @@ from .services.hall_ticket_service import generate_hall_ticket_pdf
 
 load_dotenv()
 
-# @ratelimit(key='ip', rate='5/m', block=True)
-
-def admin_panel(request):
-    is_proctor = request.user.groups.filter(name='Proctor').exists()
-    is_admin = request.user.is_superuser
-    return render(request, 'admin_panel/dashboard.html', {
-        'is_proctor': is_proctor,
-        'is_admin': is_admin,
-    })
-
 def is_staff_or_professor(user):
     """Check if user is staff or superuser."""
     return user.is_staff or user.is_superuser
@@ -86,7 +76,6 @@ def get_failed_subjects(student, semester):
         semester=semester,
         final_cie_marks__lt=40  # Fail threshold
     ).select_related('course')
-
 
 @ratelimit(key='ip', rate='10/m', method='POST')
 @ratelimit(key='ip', rate='10/m', method='POST')
@@ -291,6 +280,8 @@ def admin_dashboard(request):
     total_students = Student.objects.count()
     total_results = Result.objects.count()
     total_courses = Course.objects.count()
+
+    is_proctor = request.user.groups.filter(name='Proctor').exists()
     
     # NEW: Extended statistics
     try:
@@ -312,7 +303,7 @@ def admin_dashboard(request):
         approved_makeup = MakeupExamRequest.objects.filter(status='APPROVED').count()
         
         unread_notifications = StudentNotification.objects.filter(is_read=False).count()
-        recent_actions = AuditLog.objects.all()[:10]
+        recent_actions = AuditLog.objects.all()[:5]
         
     except:
         revaluation_count = 0
@@ -353,6 +344,7 @@ def admin_dashboard(request):
         'failed_students': failed_students,
         'unread_notifications': unread_notifications,
         'recent_actions': recent_actions,
+        'is_proctor': is_proctor,
         'is_admin': request.user.is_superuser,
     }
     
