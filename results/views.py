@@ -2,32 +2,62 @@
 Views for Student Results System.
 """
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
-from django.db.models import Q, Avg, Count
-from django_ratelimit.decorators import ratelimit
-from django.core.paginator import Paginator
-from datetime import datetime
+# Standard Library
 import os
+from datetime import datetime
+from decimal import Decimal
 
-from student_results import settings
-from .models import Student, StudentMetadata, Course, Result, UploadHistory
-from .forms import ResultQueryForm, BulkUploadForm, ResultEditForm
+# Third-Party
+from dotenv import load_dotenv
+from django_ratelimit.decorators import ratelimit
+
+# Django Core
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Q, Avg, Count
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+
+# Local App Imports
+from .models import (
+    Student,
+    StudentMetadata,
+    Course,
+    Result,
+    UploadHistory,
+    RevaluationConfiguration,
+    RevaluationRequest,
+    MakeupExamConfiguration,
+    MakeupExamRequest,
+    StudentNotification,
+    AuditLog,
+    Paper_Seeing,
+    PaperSeeingConfiguration,
+    PaperSeeingRequest
+)
+
+from .forms import (
+    ResultQueryForm,
+    BulkUploadForm,
+    ResultEditForm
+)
+
 from .utils import process_results_excel, process_metadata_excel
 from .pdf_generator import generate_result_pdf
-from django.conf import settings
-from decimal import Decimal
-from .models import (
-        RevaluationConfiguration,
-        RevaluationRequest,
-        MakeupExamConfiguration,
-        MakeupExamRequest,
-        StudentNotification,
-        AuditLog
-    )
-from dotenv import load_dotenv
+
+from .services.payment_service import (
+    RevaluationPaymentService,
+    PaperSeeingPaymentService,
+    MakeupExamPaymentService
+)
+
+from .services.hall_ticket_service import generate_hall_ticket_pdf
 
 load_dotenv()
 
@@ -487,29 +517,6 @@ LOCATION: results/views_extended.py
 Add these to your existing results/views.py or import them.
 """
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.utils import timezone
-from django.db.models import Q, Count
-from django_ratelimit.decorators import ratelimit
-from django.db import transaction
-
-from .models import Student, Result, Course, Paper_Seeing
-from .models import (
-    RevaluationConfiguration, RevaluationRequest,
-    MakeupExamConfiguration, MakeupExamRequest,
-    StudentNotification, PaperSeeingConfiguration, Paper_Seeing, PaperSeeingRequest
-)
-from .services.payment_service import (
-    RevaluationPaymentService,
-    PaperSeeingPaymentService,
-    MakeupExamPaymentService
-)
-from .services.hall_ticket_service import generate_hall_ticket_pdf
 
 
 # ============================================================================

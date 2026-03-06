@@ -178,7 +178,7 @@ class RevaluationRequestAdmin(admin.ModelAdmin):
     def receipt_link(self, obj):
         if obj.receipt_url:
             return format_html(
-                '<a href="{}" target="_blank" class="button">📄 Download</a>',
+                '<a href="{}" class="button" download>📄 Download</a>',
                 obj.receipt_url
             )
         return "No receipt"
