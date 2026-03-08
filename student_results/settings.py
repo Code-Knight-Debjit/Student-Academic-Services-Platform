@@ -3,7 +3,7 @@ Django settings for Student Results System.
 """
 
 from pathlib import Path
-from decouple import config
+from decouple import config, Csv
 import os
 from dotenv import load_dotenv
 
@@ -17,7 +17,9 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-development-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'debjit-paul.me', 'www.debjit-paul.me']
+# ALLOWED_HOSTS can be provided as a comma-separated string in the .env file.
+# Example: ALLOWED_HOSTS=localhost,127.0.0.1,.example.com
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 
 CSRF_TRUSTED_ORIGINS = [
     "https://debjit-paul.me",
