@@ -41,8 +41,8 @@ services:
       redis-server
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
-      --save ""                  # ✅ Disable RDB snapshots — cache doesn't need persistence
-      --appendonly no            # ✅ Disable AOF — same reason
+      --save ""
+      --appendonly no
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
