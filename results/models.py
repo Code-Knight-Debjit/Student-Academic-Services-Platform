@@ -194,7 +194,7 @@ class UploadHistory(models.Model):
         db_table = 'upload_history'
         ordering = ['-upload_date']
         indexes = [
-            models.Index(fields=['student']),
+            models.Index(fields=['upload_type', 'upload_date']),
         ]
 
     def __str__(self):
