@@ -18,11 +18,12 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Avg, Count
-from django.http import HttpResponse, JsonResponse, Http404, FileResponse
+from django.http import HttpResponse, JsonResponse, Http404, FileResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.contrib.admin.views.decorators import staff_member_required
 
 # Local App Imports
 from .models import (
@@ -1249,43 +1250,43 @@ def download_hall_ticket(request, request_id):
         messages.error(request, f'Error generating hall ticket: {str(e)}')
         return redirect('home')
     
-@ratelimit(key='ip', rate='10/m', method='GET')
-def download_receipt(request, receipt_type, request_id):
-    """
-    Download receipt PDF for revaluation or makeup exam.
+# @ratelimit(key='ip', rate='10/m', method='GET')
+# def download_receipt(request, receipt_type, request_id):
+#     """
+#     Download receipt PDF for revaluation or makeup exam.
     
-    Args:
-        receipt_type: 'revaluation' or 'makeup'
-        request_id: ID of the request
-    """
-    try:
-        if receipt_type == 'revaluation':
-            reval_request = get_object_or_404(RevaluationRequest, id=request_id)
+#     Args:
+#         receipt_type: 'revaluation' or 'makeup'
+#         request_id: ID of the request
+#     """
+#     try:
+#         if receipt_type == 'revaluation':
+#             reval_request = get_object_or_404(RevaluationRequest, id=request_id)
             
-            if not reval_request.receipt_url:
-                messages.error(request, 'Receipt not available')
-                return redirect('home')
+#             if not reval_request.receipt_url:
+#                 messages.error(request, 'Receipt not available')
+#                 return redirect('home')
             
-            # Redirect to receipt URL
-            return redirect(reval_request.receipt_url)
+#             # Redirect to receipt URL
+#             return redirect(reval_request.receipt_url)
             
-        elif receipt_type == 'makeup':
-            makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
+#         elif receipt_type == 'makeup':
+#             makeup_request = get_object_or_404(MakeupExamRequest, id=request_id)
             
-            if not makeup_request.receipt_url:
-                messages.error(request, 'Receipt not available')
-                return redirect('home')
+#             if not makeup_request.receipt_url:
+#                 messages.error(request, 'Receipt not available')
+#                 return redirect('home')
             
-            # Redirect to receipt URL
-            return redirect(makeup_request.receipt_url)
+#             # Redirect to receipt URL
+#             return redirect(makeup_request.receipt_url)
         
-        else:
-            messages.error(request, 'Invalid receipt type')
-            return redirect('home')
+#         else:
+#             messages.error(request, 'Invalid receipt type')
+#             return redirect('home')
             
-    except Exception as e:
-        messages.error(request, f'Error downloading receipt: {str(e)}')
-        return redirect('home')
+#     except Exception as e:
+#         messages.error(request, f'Error downloading receipt: {str(e)}')
+#         return redirect('home')
 
 # ============================================================================
 # PART 2: New Views for Edit Marks and Student Receipts
@@ -1697,6 +1698,7 @@ def revaluation_management(request):
         'date_from': date_from,
         'date_to': date_to,
         'total_count': requests_list.count(),
+        'type': 'Revaluation',
     }
     
     return render(request, 'admin_panel/revaluation_management.html', context)
@@ -1758,6 +1760,7 @@ def paperseeing_management(request):
         'date_from': date_from,
         'date_to': date_to,
         'total_count': requests_list.count(),
+        'type': 'Paper Seeing',
     }
     
     return render(request, 'admin_panel/paperseeing_management.html', context)
@@ -1984,13 +1987,13 @@ def student_profile(request, student_id):
     
     return render(request, 'admin_panel/student_profile.html', context)
 
-def download_receipt(request, pk):
+# @login_required
+def download_receipt(request, type, pk):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Admins only")
 
-    is_admin = request.user.is_superuser
-    obj = get_object_or_404(RevaluationRequest, pk=pk)
-    # print(os.path.join(settings.MEDIA_ROOT, obj.receipt_url.lstrip("/")))
+    obj = get_object_or_404(RevaluationRequest if type=='Revaluation'else PaperSeeingRequest, pk=pk, )
     file_path = (settings.BASE_DIR / obj.receipt_url.lstrip("/")).as_posix()
-    print(file_path)
 
     if not obj.receipt_url:
         raise Http404("Receipt not found")
