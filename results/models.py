@@ -31,7 +31,7 @@ class Student(models.Model):
     class Meta:
         db_table = 'students'
         ordering = ['usn']
-        index = [
+        indexes = [
             models.Index(fields=['usn'])
         ]
 
@@ -66,7 +66,7 @@ class StudentMetadata(models.Model):
 
     class Meta:
         db_table = 'student_metadata'
-        index = [
+        indexes = [
             models.Index(fields=['student']),
         ]
 
@@ -86,7 +86,7 @@ class Course(models.Model):
     class Meta:
         db_table = 'courses'
         ordering = ['semester', 'course_code']
-        index = [
+        indexes = [
             models.Index(fields=['course_code']),
         ]
 
