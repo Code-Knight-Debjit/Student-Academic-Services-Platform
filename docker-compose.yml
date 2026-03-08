@@ -2,6 +2,11 @@ version: "3.9"
 
 services:
   db:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: 1536M
     image: postgres:15
     container_name: postgres_db
     restart: always
@@ -11,6 +16,13 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=16MB
+      -c max_connections=100
+      -c wal_buffers=16MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -22,6 +34,13 @@ services:
       retries: 5
 
   web:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1536M      # 1.5 GB
+        reservations:
+          memory: 512M
     build: .
     container_name: django_app
     restart: always
@@ -40,7 +59,7 @@ services:
 
       python manage.py createsuperuser --noinput || true &&
 
-      gunicorn student_results.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120
+      gunicorn --config gunicorn_config.py student_results.wsgi:application
       "
     volumes:
       - .:/app
@@ -63,6 +82,11 @@ services:
       retries: 5
 
   nginx:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
     image: nginx:latest
     container_name: nginx_server
     restart: always
@@ -93,7 +117,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 512M
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
 volumes:
   postgres_data:
   static_volume:

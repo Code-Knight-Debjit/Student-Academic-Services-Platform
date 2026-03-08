@@ -31,6 +31,9 @@ class Student(models.Model):
     class Meta:
         db_table = 'students'
         ordering = ['usn']
+        index = [
+            models.Index(fields=['usn'])
+        ]
 
     def __str__(self):
         return f"{self.usn} - {self.name}"
@@ -63,6 +66,9 @@ class StudentMetadata(models.Model):
 
     class Meta:
         db_table = 'student_metadata'
+        index = [
+            models.Index(fields=['student']),
+        ]
 
     def __str__(self):
         return f"{self.student.usn} - DOB: {self.dob}"
@@ -80,6 +86,9 @@ class Course(models.Model):
     class Meta:
         db_table = 'courses'
         ordering = ['semester', 'course_code']
+        index = [
+            models.Index(fields=['course_code']),
+        ]
 
     def __str__(self):
         return f"{self.course_code} - {self.course_title}"
@@ -114,9 +123,13 @@ class Result(models.Model):
         db_table = 'results'
         unique_together = ['student', 'course']
         ordering = ['student', 'semester', 'course']
+        indexes = [
+            models.Index(fields=['student', 'semester']),
+        ]
 
     def __str__(self):
         return f"{self.student.usn} - {self.course.course_code} - {self.final_cie_marks}"
+
 
 class Paper_Seeing(models.Model):
     """Student Paper Seeing records."""
@@ -147,6 +160,9 @@ class Paper_Seeing(models.Model):
         db_table = 'paper_seeings'
         unique_together = ['student', 'course']
         ordering = ['student', 'semester', 'course']
+        indexes = [
+            models.Index(fields=['student', 'semester']),
+        ]
 
     def __str__(self):
         return f"{self.student.usn} - {self.course.course_code} - {self.final_cie_marks}"
@@ -177,6 +193,9 @@ class UploadHistory(models.Model):
     class Meta:
         db_table = 'upload_history'
         ordering = ['-upload_date']
+        indexes = [
+            models.Index(fields=['student']),
+        ]
 
     def __str__(self):
         return f"{self.upload_type} - {self.file_name} - {self.upload_date}"
@@ -215,6 +234,9 @@ class RevaluationConfiguration(models.Model):
         db_table = 'revaluation_configuration'
         verbose_name = 'Revaluation Configuration'
         verbose_name_plural = 'Revaluation Configuration'
+        indexes = [
+            models.Index(fields=['is_window_open']),
+        ]
     
     def __str__(self):
         status = "Open" if self.is_window_open else "Closed"
@@ -311,7 +333,6 @@ class RevaluationRequest(models.Model):
         super().save(*args, **kwargs)
 
 
-
 class PaperSeeingConfiguration(models.Model):
     """Global Paper Seeing settings managed by admin.""" 
     
@@ -332,6 +353,9 @@ class PaperSeeingConfiguration(models.Model):
         db_table = 'paper_seeing_configuration'
         verbose_name = 'Paper Seeing Configuration'
         verbose_name_plural = 'Paper Seeing Configuration'
+        indexes = [
+            models.Index(fields=['is_window_open']),
+        ]
     
     def __str__(self):
         status = "Open" if self.is_window_open else "Closed"
@@ -451,6 +475,9 @@ class MakeupExamConfiguration(models.Model):
         db_table = 'makeup_exam_configuration'
         verbose_name = 'Makeup Exam Configuration'
         verbose_name_plural = 'Makeup Exam Configuration'
+        indexes = [
+            models.Index(fields=['is_registration_open']),
+        ]
     
     def __str__(self):
         status = "Open" if self.is_registration_open else "Closed"

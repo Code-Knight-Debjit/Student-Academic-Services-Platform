@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.cache import cache
 
 # Local App Imports
 from .models import (
@@ -2006,3 +2007,13 @@ def download_receipt(request, type, pk):
         as_attachment=True,
         filename=os.path.basename(file_path)
     )
+
+def get_result(usn, semester):
+    cache_key = f"result_{usn}_{semester}"
+    result = cache.get(cache_key)
+    if not result:
+        result = Result.objects.select_related('course').filter(
+            student__usn=usn, semester=semester
+        )
+        cache.set(cache_key, result, timeout=300)
+    return result
