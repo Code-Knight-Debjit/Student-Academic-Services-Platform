@@ -149,3 +149,5 @@ CACHES = {
         "TIMEOUT": 300,  # cache results for 5 minutes
     }
 }
+
+RATELIMIT_ENABLE = False
