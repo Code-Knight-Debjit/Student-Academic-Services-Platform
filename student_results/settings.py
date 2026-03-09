@@ -150,8 +150,6 @@ REDIS_URL = config("REDIS_URL", default="")
 REDIS_URL_2 = config("REDIS_URL_2", default="")
 # settings.py
 if REDIS_URL:
-    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-    SESSION_CACHE_ALIAS = "sessions"
 
     CACHES = {
         "default": {
@@ -178,6 +176,8 @@ if REDIS_URL:
             "TIMEOUT": 60 * 30,
         }
     }
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "sessions"
 else:
     # Fallback for local dev without Redis
     CACHES = {
