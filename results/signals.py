@@ -367,9 +367,19 @@ def on_upload_history_change(sender, instance, **kwargs):
 @receiver(post_save,   sender="results.RevaluationRequest")
 @receiver(post_delete, sender="results.RevaluationRequest")
 def on_reval_request_change(sender, instance, **kwargs):
-    invalidate_student_result(instance.student_id, instance.result.semester)
+    try:
+        from .models import RevaluationRequest
+        obj = RevaluationRequest.objects.select_related('result').get(pk=instance.pk)
+        invalidate_student_result(instance.student_id, obj.result.semester)
+    except Exception:
+        pass  # Don't crash if result is deleted
 
 @receiver(post_save,   sender="results.PaperSeeingRequest")
 @receiver(post_delete, sender="results.PaperSeeingRequest")
 def on_paperseeing_request_change(sender, instance, **kwargs):
-    invalidate_student_result(instance.student_id, instance.result.semester)
+    try:
+        from .models import PaperSeeingRequest
+        obj = PaperSeeingRequest.objects.select_related('result').get(pk=instance.pk)
+        invalidate_student_result(instance.student_id, obj.result.semester)
+    except Exception:
+        pass  # Don't crash if result is deleted
