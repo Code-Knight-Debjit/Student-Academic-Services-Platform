@@ -147,6 +147,7 @@ LOGIN_REDIRECT_URL = '/admin-panel/'
 LOGOUT_REDIRECT_URL = '/'
 
 REDIS_URL = config("REDIS_URL", default="")
+REDIS_URL_2 = config("REDIS_URL_2", default="")
 # settings.py
 if REDIS_URL:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -166,6 +167,11 @@ if REDIS_URL:
                 "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
                 "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
+
+        "sessions": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL_2,
+        },
             "KEY_PREFIX": "",
             "VERSION": 1,
             "KEY_FUNCTION": "results.cache.make_key",
