@@ -165,16 +165,27 @@ if REDIS_URL:
                 "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
                 "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
-
-        "sessions": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": REDIS_URL_2,
-        },
             "KEY_PREFIX": "",
             "VERSION": 1,
             "KEY_FUNCTION": "results.cache.make_key",
             "TIMEOUT": 60 * 30,
-        }
+        },
+        "sessions": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL_2,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True,
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+                "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
+            },
+            "KEY_PREFIX": "session",
+            "VERSION": 1,
+        },
     }
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     SESSION_CACHE_ALIAS = "sessions"
