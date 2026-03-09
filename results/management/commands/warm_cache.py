@@ -61,7 +61,7 @@ class Command(BaseCommand):
 
         for student in students.iterator(chunk_size=200):
             try:
-                metadata = student.studentmetadata
+                metadata = student.metadata
             except StudentMetadata.DoesNotExist:
                 skipped += 1
                 continue
