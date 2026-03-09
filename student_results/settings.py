@@ -164,7 +164,7 @@ if REDIS_URL:
                     "retry_on_timeout": True,
                 },
                 # Compress values larger than 10 KB to save Redis RAM
-                "COMPRESSOR": "django_redis.compressor.zlib.ZlibCompressor",
+                "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
                 "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
             "KEY_PREFIX": "",        # our keys already have the 'sasp:' prefix
