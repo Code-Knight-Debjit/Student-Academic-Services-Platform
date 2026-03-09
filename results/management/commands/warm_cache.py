@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.NOTICE("Starting cache warm-up …"))
 
-        students = Student.objects.select_related("studentmetadata")
+        students = Student.objects.select_related("metadata")
         if usn_filter:
             students = students.filter(usn=usn_filter.upper())
 
