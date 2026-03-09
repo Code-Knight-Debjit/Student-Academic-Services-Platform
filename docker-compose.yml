@@ -32,22 +32,24 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
-    container_name: redis_cache
-    restart: always
-    mem_limit: 512m            # ✅ Actually enforced
-    cpus: 0.1
-    command: >
-      redis-server
-      --maxmemory 512mb
-      --maxmemory-policy allkeys-lru
-      --save ""
-      --appendonly no
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s               # ✅ Added timeout
-      retries: 5
+      image: redis:7-alpine
+      container_name: redis_cache
+      restart: always
+      mem_limit: 512m
+      cpus: 0.1
+      command: >
+        redis-server
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+        --save ""
+        --appendonly no
+      volumes:
+        - redis_data:/data
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 10s
+        timeout: 3s
+        retries: 5
 
   web:
     build: .
@@ -134,3 +136,4 @@ volumes:
   postgres_data:
   static_volume:
   nginx_cache:                 # ✅ Persistent volume for Nginx proxy cache
+  redis_data:

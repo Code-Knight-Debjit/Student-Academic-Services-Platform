@@ -15,9 +15,9 @@ jobs:
 
     services:
       postgres:
+        image: postgres:15
         ports:
           - 127.0.0.1:5433:5432
-        image: postgres:15
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
@@ -26,6 +26,17 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
+          --health-retries 5
+
+      # ── NEW: Redis service container ───────────────────────────────────────
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 127.0.0.1:6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
           --health-retries 5
 
     env:
@@ -39,6 +50,8 @@ jobs:
       DEBUG: "True"
       RAZORPAY_KEY_ID: dummy_key
       RAZORPAY_KEY_SECRET: dummy_secret
+      # ── NEW: Point Django cache layer at the Redis service container ───────
+      REDIS_URL: redis://localhost:6379/1
 
     steps:
       - name: Checkout code
@@ -62,6 +75,14 @@ jobs:
             sleep 2
           done
 
+      # ── NEW: Wait for Redis before running tests ───────────────────────────
+      - name: Wait for Redis
+        run: |
+          until redis-cli -h localhost -p 6379 ping | grep -q PONG; do
+            echo "Waiting for redis..."
+            sleep 2
+          done
+
       - name: Run migrations
         run: python manage.py migrate
 
@@ -71,6 +92,15 @@ jobs:
           coverage run manage.py test results.tests --verbosity=2
           coverage report --fail-under=70
           coverage xml
+
+      # ── NEW: Verify Redis was actually used during the test run ───────────
+      - name: Verify Redis connectivity
+        if: always()
+        run: |
+          echo "Keys written to Redis during tests:"
+          redis-cli -h localhost -p 6379 -n 1 KEYS "sasp:*" || echo "No sasp:* keys found (expected if tests clear cache)"
+          echo "Redis DB size (db 1):"
+          redis-cli -h localhost -p 6379 -n 1 DBSIZE
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

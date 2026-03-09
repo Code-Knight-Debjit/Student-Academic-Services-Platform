@@ -4,9 +4,10 @@ Django signals for notifications and audit logging.
 LOCATION: results/signals.py
 """
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+import logging
 
 from .models import (
     RevaluationRequest,
@@ -15,6 +16,13 @@ from .models import (
     AuditLog
 )
 
+from .cache import (
+    invalidate_student_result,
+    invalidate_all_results_for_student,
+    invalidate_analytics,
+)
+
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # NOTIFICATION HELPER
@@ -277,3 +285,91 @@ def razorpay_webhook(request):
     
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
+
+
+# ---------------------------------------------------------------------------
+# Result model signals
+# ---------------------------------------------------------------------------
+
+def _on_result_change(instance, **kwargs):
+    """
+    Called whenever a Result row is created, updated, or deleted.
+
+    Invalidates:
+      1. The specific (usn, semester) result card so it is reloaded fresh.
+      2. All analytics keys because aggregates (averages, top performers, …)
+         depend on result data.
+    """
+    usn      = instance.student_id          # the USN is the PK of Student
+    semester = instance.semester
+
+    invalidate_student_result(usn, semester)
+    invalidate_analytics()
+    logger.info("Cache invalidated for Result change: USN=%s, Sem=%s", usn, semester)
+
+
+# Register the same handler for both save and delete events.
+# We import the model lazily via the `sender` string to avoid circular imports.
+# Django resolves the dotted path 'results.Result' after all apps are loaded.
+
+@receiver(post_save,   sender="results.Result")
+@receiver(post_delete, sender="results.Result")
+def on_result_change(sender, instance, **kwargs):
+    _on_result_change(instance, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Student / StudentMetadata model signals
+# ---------------------------------------------------------------------------
+
+@receiver(post_save,   sender="results.Student")
+@receiver(post_delete, sender="results.Student")
+def on_student_change(sender, instance, **kwargs):
+    """
+    If the Student record itself changes (name, department, etc.) we need to
+    invalidate every semester result card for that student because the name
+    is embedded in the cached result dict.
+    """
+    invalidate_all_results_for_student(instance.usn)
+    logger.info("Cache invalidated for Student change: USN=%s", instance.usn)
+
+
+@receiver(post_save,   sender="results.StudentMetadata")
+@receiver(post_delete, sender="results.StudentMetadata")
+def on_student_metadata_change(sender, instance, **kwargs):
+    """
+    StudentMetadata holds date-of-birth and admission route.
+    A DOB change means the student might not pass the lookup auth check,
+    so we purge their cached cards to avoid stale successful lookups.
+    """
+    usn = instance.student_id
+    invalidate_all_results_for_student(usn)
+    logger.info("Cache invalidated for StudentMetadata change: USN=%s", usn)
+
+
+# ---------------------------------------------------------------------------
+# UploadHistory model signals
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender="results.UploadHistory")
+def on_upload_history_change(sender, instance, **kwargs):
+    """
+    Whenever a new bulk upload completes, the upload history list cache
+    and all analytics are stale.
+    """
+    from .cache import cache_delete, _upload_history_key  # local import avoids circular dep
+    cache_delete(_upload_history_key())
+    invalidate_analytics()
+    logger.info("Cache invalidated after new UploadHistory record (id=%s).", instance.pk)
+
+@receiver(post_save,   sender="results.RevaluationRequest")
+@receiver(post_delete, sender="results.RevaluationRequest")
+def on_reval_request_change(sender, instance, **kwargs):
+    invalidate_student_result(instance.student_id, instance.result.semester)
+
+@receiver(post_save,   sender="results.PaperSeeingRequest")
+@receiver(post_delete, sender="results.PaperSeeingRequest")
+def on_paperseeing_request_change(sender, instance, **kwargs):
+    invalidate_student_result(instance.student_id, instance.result.semester)

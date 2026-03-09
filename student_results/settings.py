@@ -143,13 +143,77 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/admin-panel/'
 LOGOUT_REDIRECT_URL = '/'
 
+REDIS_URL = config("REDIS_URL", default="")
 # settings.py
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
-        "TIMEOUT": 300,  # cache results for 5 minutes
+if REDIS_URL:
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                # If Redis goes down the cache raises an exception — we catch
+                # all exceptions in cache.py so the site stays up.
+                "IGNORE_EXCEPTIONS": True,
+
+                # Keep connections alive across requests (Gunicorn worker reuse)
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                # Compress values larger than 10 KB to save Redis RAM
+                "COMPRESSOR": "django_redis.compressor.zlib.ZlibCompressor",
+                "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
+            },
+            "KEY_PREFIX": "",        # our keys already have the 'sasp:' prefix
+            "TIMEOUT": 60 * 30,      # default TTL: 30 minutes
+        }
     }
+else:
+    # Fallback for local dev without Redis
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "sasp-locmem",
+        }
+    }
+
+    
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        # Your existing Django logger (keep as-is)
+        "django": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+        },
+        # New: cache layer — set to DEBUG locally, INFO in production
+        "results.cache": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "results.signals": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
 
 RATELIMIT_ENABLE = False
