@@ -26,10 +26,14 @@ import logging
 from django.core.management.base import BaseCommand
 from django.db.models import Prefetch
 
-from results.models import Student, StudentMetadata, Result
+from results.models import Student, StudentMetadata, Result, RevaluationConfiguration, PaperSeeingConfiguration, RevaluationRequest, PaperSeeingRequest
 from results.cache import set_cached_student_result
-from results.views import _serialise_result   # reuse the serialiser
-
+from results.views import (
+    _build_cache_payload,
+    _serialise_result_row,
+    _serialise_reval_request,
+    _serialise_paperseeing_request,
+)
 logger = logging.getLogger(__name__)
 
 
@@ -79,7 +83,38 @@ class Command(BaseCommand):
                 if not results_qs.exists():
                     continue
 
-                data = _serialise_result(student, metadata, results_qs)
+                reval_config       = RevaluationConfiguration.objects.first()
+                paperseeing_config = PaperSeeingConfiguration.objects.first()
+                result_ids         = list(results_qs.values_list("pk", flat=True))
+
+                reval_map = {
+                    r.result_id: r for r in
+                    RevaluationRequest.objects.filter(student=student, result_id__in=result_ids)
+                }
+                paperseeing_map = {
+                    r.result_id: r for r in
+                    PaperSeeingRequest.objects.filter(student=student, result_id__in=result_ids)
+                }
+
+                reval_open       = bool(reval_config and reval_config.is_active())
+                paperseeing_open = bool(paperseeing_config and paperseeing_config.is_active())
+
+                results_with_state = [
+                    _serialise_result_row(
+                        result=r,
+                        reval_req=_serialise_reval_request(reval_map.get(r.pk)),
+                        can_reval=reval_open and r.pk not in reval_map,
+                        paperseeing_req=_serialise_paperseeing_request(paperseeing_map.get(r.pk)),
+                        can_paperseeing=paperseeing_open and r.pk not in paperseeing_map,
+                    )
+                    for r in results_qs
+                ]
+
+                data = _build_cache_payload(
+                    student=student, metadata=metadata, results_qs=results_qs,
+                    reval_config=reval_config, paperseeing_config=paperseeing_config,
+                    results_with_state=results_with_state,
+                )
                 set_cached_student_result(student.usn, sem, data)
                 warmed += 1
 

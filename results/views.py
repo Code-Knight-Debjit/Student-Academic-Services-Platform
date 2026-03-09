@@ -375,7 +375,6 @@ def get_failed_subjects(student, semester):
     ).select_related('course')
 
 @ratelimit(key='ip', rate='10/m', method='POST')
-@ratelimit(key='ip', rate='10/m', method='POST')
 def home(request):
     """
     Home page with result query form.
@@ -892,6 +891,10 @@ def student_result_view_extended(request, usn, semester):
     This enhances the existing result_view.
     """
     try:
+        cached_payload = get_cached_student_result(usn.upper(), int(semester))
+        if cached_payload:
+            ctx = _build_template_context_from_cache(cached_payload)
+            return render(request, 'results/result_view_extended.html', ctx)
         student = get_object_or_404(Student, usn=usn)
         results = Result.objects.filter(
             student=student,

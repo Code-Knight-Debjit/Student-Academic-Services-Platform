@@ -150,28 +150,26 @@ REDIS_URL = config("REDIS_URL", default="")
 # settings.py
 if REDIS_URL:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-    SESSION_CACHE_ALIAS = "default"
+    SESSION_CACHE_ALIAS = "sessions"
+
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                # If Redis goes down the cache raises an exception — we catch
-                # all exceptions in cache.py so the site stays up.
                 "IGNORE_EXCEPTIONS": True,
-
-                # Keep connections alive across requests (Gunicorn worker reuse)
                 "CONNECTION_POOL_KWARGS": {
                     "max_connections": 50,
                     "retry_on_timeout": True,
                 },
-                # Compress values larger than 10 KB to save Redis RAM
                 "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
                 "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
-            "KEY_PREFIX": "",        # our keys already have the 'sasp:' prefix
-            "TIMEOUT": 60 * 30,      # default TTL: 30 minutes
+            "KEY_PREFIX": "",
+            "VERSION": 1,
+            "KEY_FUNCTION": "results.cache.make_key",
+            "TIMEOUT": 60 * 30,
         }
     }
 else:

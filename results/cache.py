@@ -24,7 +24,18 @@ from functools import wraps
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+def make_key(key: str, key_prefix: str, version: int) -> str:
+    """
+    Custom key function for django-redis.
 
+    Django's default key constructor produces  :<version>:<prefix>:<key>
+    which means our  sasp:result:USN:1  becomes  :1::sasp:result:USN:1
+    in Redis, breaking cache_info pattern scans and direct redis-cli inspection.
+
+    This function returns the key exactly as-is so what we write in code
+    is what appears in Redis — bare  sasp:result:USN:1  with no mangling.
+    """
+    return key
 # ---------------------------------------------------------------------------
 # TTL constants (seconds)
 # ---------------------------------------------------------------------------
