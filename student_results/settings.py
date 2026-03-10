@@ -77,7 +77,12 @@ WSGI_APPLICATION = 'student_results.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE'),
+        'ENGINE': 'dj_db_conn_pool.backends.postgresql',
+        'POOL_OPTIONS': {
+            'POOL_SIZE': 10,
+            'MAX_OVERFLOW': 20,
+            'RECYCLE': 300,
+        },
         'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),

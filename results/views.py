@@ -398,7 +398,13 @@ def home(request):
     }
 
     if request.method != "POST":
-        return render(request, "results/home.html", context)
+        cache_key = 'sasp:homepage:v1'
+        cached_html = cache.get(cache_key)
+        if cached_html:
+            return HttpResponse(cached_html)
+        response = render(request, 'results/home.html', context)
+        cache.set(cache_key, response.content, 60)  # 60s is plenty for a static form
+        return response
 
     form = ResultQueryForm(request.POST)
 

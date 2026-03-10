@@ -7,8 +7,8 @@ services:
     container_name: postgres_db
     restart: always
     mem_limit: 1536m           # ✅ Actually enforced (not deploy.resources)
-    cpus: 0.7
-    mem_reservation: 256m
+    cpus: 1.5
+    mem_reservation: 2g
     env_file:
       - .env
     environment:
@@ -17,11 +17,12 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     command: >
       postgres
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c work_mem=16MB
-      -c max_connections=100
+      -c shared_buffers=512MB
+      -c effective_cache_size=1500MB
+      -c work_mem=8MB
+      -c max_connections=200
       -c wal_buffers=16MB
+      -c checkpoint_completion_target=0.9
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # ✅ NO ports: - Postgres stays internal only
@@ -55,8 +56,8 @@ services:
     build: .
     container_name: django_app
     restart: always
-    mem_limit: 1536m           # ✅ Actually enforced
-    cpus: 1.0
+    mem_limit: 2g           # ✅ Actually enforced
+    cpus: 2.0
     mem_reservation: 512m
     # ✅ NO ports: - web is only reachable via Nginx internally
     command: >

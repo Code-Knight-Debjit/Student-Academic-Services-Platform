@@ -16,3 +16,4 @@ qrcode==7.4.2
 dotenv
 setuptools
 django-redis==5.4.0
+django-db-connection-pool[postgresql]>=1.2.3
