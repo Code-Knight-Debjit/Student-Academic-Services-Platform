@@ -166,29 +166,25 @@ if REDIS_URL:
                 "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
             "KEY_PREFIX": "",
-            "VERSION": 1,
-            "KEY_FUNCTION": "results.cache.make_key",
             "TIMEOUT": 60 * 30,
         },
-        "sessions": {
+        "session": {                              # ← NEW: sessions on db=2
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL_2,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "CONNECTION_POOL_KWARGS": {
-                    "max_connections": 50,
+                    "max_connections": 100,       # ← more connections for sessions
                     "retry_on_timeout": True,
                 },
-                "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-                "SERIALIZER": "django_redis.serializers.pickle.PickleSerializer",
             },
-            "KEY_PREFIX": "session",
-            "VERSION": 1,
+            "TIMEOUT": 3600,                      # 1 hour session TTL
         },
     }
-    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-    SESSION_CACHE_ALIAS = "sessions"
+
+    SESSION_ENGINE      = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "session" 
 else:
     # Fallback for local dev without Redis
     CACHES = {
