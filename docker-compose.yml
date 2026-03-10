@@ -84,7 +84,8 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      REDIS_URL: redis://redis:6379/1   # ✅ Pass Redis URL to Django
+      REDIS_URL: ${REDIS_URL}   # ✅ Pass Redis URL to Django
+      REDIS_URL_2: ${REDIS_URL_2} # ✅ Pass second Redis URL to Django
       DJANGO_SUPERUSER_PASSWORD: ${ADMIN_PASSWORD}
       DJANGO_SUPERUSER_USERNAME: ${ADMIN_USERNAME}
       DJANGO_SUPERUSER_EMAIL: ${ADMIN_EMAIL}

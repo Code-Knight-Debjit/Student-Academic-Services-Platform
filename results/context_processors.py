@@ -5,11 +5,12 @@ LOCATION: results/context_processors.py
 
 This adds badge counts to the navigation menu automatically.
 """
-
+from django.core.cache import cache
 from results.models import (
     RevaluationRequest, 
     MakeupExamRequest,
-    StudentNotification
+    RevaluationConfiguration,
+    MakeupExamConfiguration
 )
 
 
@@ -29,48 +30,18 @@ def notification_counts(request):
         'pending_proctor_count': 0,
         'student_unread_count': 0,
     }
-    
+    # ✅ Only query DB if user is actually logged in as staff
     if not request.user.is_authenticated:
-        return counts
+        return counts  # ← returns immediately for all public users — ZERO DB queries
     
-    # Admin/Staff counts
     if request.user.is_staff or request.user.is_superuser:
-        # Revaluation requests awaiting admin action
-        counts['pending_revaluation_count'] = RevaluationRequest.objects.filter(
-            status='PAID'
-        ).count()
-        
-        # Makeup exam requests awaiting admin verification
-        counts['pending_makeup_count'] = MakeupExamRequest.objects.filter(
-            status='PAID',
-            admin_verified=False
-        ).count()
-    
-    # Proctor counts
-    if request.user.groups.filter(name='Proctor').exists() or request.user.is_superuser:
-        # Requests awaiting proctor verification (admin already verified)
-        counts['pending_proctor_count'] = MakeupExamRequest.objects.filter(
-            admin_verified=True,
-            proctor_verified=False
-        ).count()
-    
-    # Student counts (if students can log in)
-    # This is for future enhancement if you add student login
-    try:
-        from results.models import Student
-        student = Student.objects.filter(
-            # Add your student-user relationship here
-            # Example: user=request.user
-        ).first()
-        
-        if student:
-            counts['student_unread_count'] = StudentNotification.objects.filter(
-                student=student,
-                is_read=False
-            ).count()
-    except:
-        pass
-    
+        cache_key = 'nav_counts_admin'
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+        counts['pending_revaluation_count'] = RevaluationRequest.objects.filter(status='PAID').count()
+        counts['pending_makeup_count'] = MakeupExamRequest.objects.filter(status='PAID', admin_verified=False).count()
+        cache.set(cache_key, counts, 60)  # cache for 60s
     return counts
 
 
@@ -83,10 +54,10 @@ def exam_configurations(request):
     Returns:
         dict: Configuration status flags
     """
-    from results.models import (
-        RevaluationConfiguration,
-        MakeupExamConfiguration
-    )
+    cache_key = 'exam_config_status'
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
     
     config_status = {
         'revaluation_window_open': False,
@@ -110,7 +81,8 @@ def exam_configurations(request):
             config_status['makeup_exam_config'] = makeup_config
     except:
         pass
-    
+
+    cache.set(cache_key, config_status, 300)
     return config_status
 
 
