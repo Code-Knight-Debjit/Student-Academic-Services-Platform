@@ -23,7 +23,9 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 
 CSRF_TRUSTED_ORIGINS = [
     "https://debjit-paul.me",
-    "https://www.debjit-paul.me"
+    "https://www.debjit-paul.me",
+    "http://localhost/",      # ← add for load testing
+    "http://127.0.0.1",      # ← add for load testing
 ]
 # Application definition
 INSTALLED_APPS = [
